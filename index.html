@@ -125,6 +125,9 @@
         let loadingIndicator = null;
         let isProcessing = false;
 
+        // A chave de API fornecida pelo usuário
+        const apiKey = "AIzaSyBvfm_3o40Z26Z6_7CAz-8r6MSjPaWcR_o";
+
         // Função para salvar o histórico no LocalStorage
         function saveChatToLocalStorage() {
             localStorage.setItem('vilorboty-chat-history', JSON.stringify(chatHistory));
@@ -212,11 +215,7 @@
             if (isProcessing) return;
             const userMessage = chatInput.value.trim();
             if (userMessage === '') return;
-
-            // A chave de API é fornecida pelo ambiente de visualização.
-            // O valor vazio ("") é intencional para permitir a injeção da chave.
-            const apiKey = ""; 
-
+            
             if (!apiKey) {
                 showAlert("A chave da API está ausente. Certifique-se de que o aplicativo está sendo executado em um ambiente com a chave de API fornecida.");
                 return;
@@ -240,7 +239,8 @@
 
             try {
                 const payload = { contents: contents };
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+                // Alterado para um modelo de texto compatível
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
 
                 const response = await fetch(apiUrl, {
                     method: 'POST',
@@ -275,7 +275,7 @@
             }
         }
         
-        // Função para gerar imagem (agora com API direta)
+        // Função para gerar imagem
         async function generateImage() {
             if (isProcessing) return;
             const userPrompt = chatInput.value.trim();
@@ -283,10 +283,6 @@
                 showAlert('Por favor, digite um prompt para a imagem.');
                 return;
             }
-
-            // A chave de API é fornecida pelo ambiente de visualização.
-            // O valor vazio ("") é intencional para permitir a injeção da chave.
-            const apiKey = "";
             
             if (!apiKey) {
                 showAlert("A chave da API está ausente. Certifique-se de que o aplicativo está sendo executado em um ambiente com a chave de API fornecida.");
@@ -304,55 +300,33 @@
             showLoading();
 
             try {
+                // Alterado para usar um modelo de IA compatível com a chave de API
                 const payload = {
-                    instances: {
-                        prompt: userPrompt
+                    contents: [{
+                        parts: [{ text: userPrompt }]
+                    }],
+                    generationConfig: {
+                        responseModalities: ['TEXT', 'IMAGE']
                     },
-                    parameters: {
-                        "sampleCount": 1
-                    }
                 };
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
+                // Alterado para o endpoint do modelo gemini-2.0-flash-preview-image-generation
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=${apiKey}`;
 
-                let response;
-                let result;
-                let base64Data;
-                let retryCount = 0;
-                const maxRetries = 3;
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
 
-                while (retryCount < maxRetries) {
-                    try {
-                        response = await fetch(apiUrl, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(payload)
-                        });
-
-                        if (response.ok) {
-                            result = await response.json();
-                            base64Data = result?.predictions?.[0]?.bytesBase64Encoded;
-                            break;
-                        } else if (response.status === 429) {
-                            const delay = Math.pow(2, retryCount) * 1000;
-                            console.warn(`Limite de requisições excedido. Tentando novamente em ${delay / 1000}s...`);
-                            await new Promise(res => setTimeout(res, delay));
-                            retryCount++;
-                        } else {
-                            throw new Error('Erro na chamada da API de imagem: ' + response.statusText);
-                        }
-                    } catch (error) {
-                        console.error(`Tentativa ${retryCount + 1} falhou:`, error);
-                        if (retryCount >= maxRetries - 1) {
-                            throw error;
-                        }
-                        const delay = Math.pow(2, retryCount) * 1000;
-                        console.warn(`Tentando novamente em ${delay / 1000}s...`);
-                        await new Promise(res => setTimeout(res, delay));
-                        retryCount++;
-                    }
+                if (!response.ok) {
+                    throw new Error('Erro na chamada da API de imagem: ' + response.statusText);
                 }
                 
+                const result = await response.json();
                 hideLoading();
+
+                // Alterado para extrair a imagem do novo formato de resposta
+                const base64Data = result?.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
 
                 if (base64Data) {
                     addMessage({ imageData: base64Data }, 'ai', 'image');
@@ -374,10 +348,6 @@
         // Lida com a reprodução de áudio (Texto para Áudio)
         async function speakText(text, button) {
             button.innerText = '⏳';
-
-            // A chave de API é fornecida pelo ambiente de visualização.
-            // O valor vazio ("") é intencional para permitir a injeção da chave.
-            const apiKey = "";
             
             if (!apiKey) {
                 showAlert("A chave da API está ausente. Certifique-se de que o aplicativo está sendo executado em um ambiente com a chave de API fornecida.");
