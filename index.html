@@ -213,6 +213,15 @@
             const userMessage = chatInput.value.trim();
             if (userMessage === '') return;
 
+            // A chave de API é fornecida pelo ambiente de visualização.
+            // O valor vazio ("") é intencional para permitir a injeção da chave.
+            const apiKey = ""; 
+
+            if (!apiKey) {
+                showAlert("A chave da API está ausente. Certifique-se de que o aplicativo está sendo executado em um ambiente com a chave de API fornecida.");
+                return;
+            }
+
             isProcessing = true;
             addMessage(userMessage, 'user');
             
@@ -231,7 +240,6 @@
 
             try {
                 const payload = { contents: contents };
-                const apiKey = ""; // A chave é injetada automaticamente
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
 
                 const response = await fetch(apiUrl, {
@@ -276,6 +284,15 @@
                 return;
             }
 
+            // A chave de API é fornecida pelo ambiente de visualização.
+            // O valor vazio ("") é intencional para permitir a injeção da chave.
+            const apiKey = "";
+            
+            if (!apiKey) {
+                showAlert("A chave da API está ausente. Certifique-se de que o aplicativo está sendo executado em um ambiente com a chave de API fornecida.");
+                return;
+            }
+
             isProcessing = true;
             addMessage(userPrompt, 'user', 'text');
             
@@ -295,7 +312,6 @@
                         "sampleCount": 1
                     }
                 };
-                const apiKey = ""; // A chave é injetada automaticamente
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
 
                 let response;
@@ -358,6 +374,17 @@
         // Lida com a reprodução de áudio (Texto para Áudio)
         async function speakText(text, button) {
             button.innerText = '⏳';
+
+            // A chave de API é fornecida pelo ambiente de visualização.
+            // O valor vazio ("") é intencional para permitir a injeção da chave.
+            const apiKey = "";
+            
+            if (!apiKey) {
+                showAlert("A chave da API está ausente. Certifique-se de que o aplicativo está sendo executado em um ambiente com a chave de API fornecida.");
+                button.innerText = '🔊';
+                return;
+            }
+
             try {
                 const payload = {
                     contents: [{ parts: [{ text: text }] }],
@@ -372,7 +399,6 @@
                     model: "gemini-2.5-flash-preview-tts"
                 };
                 
-                const apiKey = "";
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
                 
                 const response = await fetch(apiUrl, {
