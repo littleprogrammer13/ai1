@@ -27,12 +27,7 @@
 
         <!-- Área de mensagens do chat -->
         <div id="chat-container" class="flex-1 p-4 overflow-y-auto space-y-4 text-sm">
-            <!-- Mensagem de boas-vindas da IA -->
-            <div id="welcome-message" class="flex justify-start">
-                <div class="bg-blue-100 text-blue-800 rounded-lg p-3 max-w-[80%]">
-                    Olá! Eu sou o VilorBoty. Posso conversar com você e também gerar imagens.
-                </div>
-            </div>
+            <!-- Mensagem de boas-vindas da IA será adicionada via JS -->
         </div>
 
         <!-- Área de entrada de texto e botões -->
@@ -110,7 +105,6 @@
             return new Blob([view], { type: 'audio/wav' });
         };
 
-
         // Seleciona os elementos da interface
         const chatContainer = document.getElementById('chat-container');
         const chatInput = document.getElementById('chat-input');
@@ -138,17 +132,20 @@
             const savedHistory = localStorage.getItem('vilorboty-chat-history');
             if (savedHistory) {
                 chatHistory = JSON.parse(savedHistory);
-                // Limpa o chat e renderiza o histórico salvo
-                chatContainer.innerHTML = '';
-                const welcomeMessage = document.getElementById('welcome-message');
-                if (welcomeMessage) {
-                    chatContainer.appendChild(welcomeMessage);
-                }
-                
-                chatHistory.forEach(message => {
-                    addMessage(message.content, message.sender, message.type);
+            } else {
+                // Adiciona uma mensagem de boas-vindas se o histórico estiver vazio
+                chatHistory.push({
+                    content: 'Olá! Eu sou o VilorBoty. Posso conversar com você e também gerar imagens.',
+                    sender: 'ai',
+                    type: 'text'
                 });
             }
+            
+            // Limpa o chat e renderiza o histórico completo do array
+            chatContainer.innerHTML = '';
+            chatHistory.forEach(message => {
+                addMessage(message.content, message.sender, message.type);
+            });
         }
 
         // Exibe um modal de alerta
@@ -174,6 +171,7 @@
                 imageContainer.classList.add('bg-blue-100', 'text-blue-800', 'rounded-lg', 'p-3', 'max-w-[80%]', 'flex', 'flex-col');
                 imageContainer.innerHTML = `<p><strong>Imagem gerada:</strong></p>`;
                 const imageElement = document.createElement('img');
+                // Note: The content for type 'image' is an object { imageData: '...' }
                 imageElement.src = `data:image/png;base64,${content.imageData}`;
                 imageElement.classList.add('rounded-lg', 'w-full', 'h-auto', 'mt-2');
                 imageContainer.appendChild(imageElement);
@@ -224,22 +222,20 @@
             isProcessing = true;
             addMessage(userMessage, 'user');
             
-            // Adiciona a mensagem do usuário ao histórico e salva
-            chatHistory.push({ role: "user", parts: [{ text: userMessage }], sender: 'user', type: 'text', content: userMessage });
+            // Salva o prompt do usuário no histórico
+            chatHistory.push({ content: userMessage, sender: 'user', type: 'text' });
             saveChatToLocalStorage();
 
             chatInput.value = '';
             
-            const contents = [];
-            chatHistory.filter(msg => msg.type === 'text').forEach(msg => {
-                contents.push({ role: msg.sender === 'user' ? 'user' : 'model', parts: [{ text: msg.content }] });
-            });
+            const contents = chatHistory
+                .filter(msg => msg.type === 'text') // Apenas mensagens de texto para a API de chat
+                .map(msg => ({ role: msg.sender === 'user' ? 'user' : 'model', parts: [{ text: msg.content }] }));
 
             showLoading();
 
             try {
                 const payload = { contents: contents };
-                // Alterado para um modelo de texto compatível
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
 
                 const response = await fetch(apiUrl, {
@@ -260,8 +256,8 @@
                     result.candidates[0].content.parts.length > 0) {
                     const aiResponseText = result.candidates[0].content.parts[0].text;
                     addMessage(aiResponseText, 'ai', 'text');
-                    // Adiciona a mensagem da IA ao histórico e salva
-                    chatHistory.push({ role: "model", parts: [{ text: aiResponseText }], sender: 'ai', type: 'text', content: aiResponseText });
+                    // Salva a mensagem da IA no histórico
+                    chatHistory.push({ content: aiResponseText, sender: 'ai', type: 'text' });
                     saveChatToLocalStorage();
                 } else {
                     showAlert("Não foi possível obter uma resposta. Tente novamente.");
@@ -292,25 +288,24 @@
             isProcessing = true;
             addMessage(userPrompt, 'user', 'text');
             
-            // Adiciona a mensagem do usuário ao histórico e salva
-            chatHistory.push({ role: "user", parts: [{ text: userPrompt }], sender: 'user', type: 'text', content: userPrompt });
+            // Salva o prompt do usuário no histórico
+            chatHistory.push({ content: userPrompt, sender: 'user', type: 'text' });
             saveChatToLocalStorage();
 
             chatInput.value = '';
             showLoading();
 
             try {
-                // Alterado para usar um modelo de IA compatível com a chave de API
+                // *** Alteração: Usando o modelo imagen-3.0-generate-002 para melhor qualidade de imagem ***
                 const payload = {
-                    contents: [{
-                        parts: [{ text: userPrompt }]
+                    instances: [{
+                        prompt: userPrompt
                     }],
-                    generationConfig: {
-                        responseModalities: ['TEXT', 'IMAGE']
-                    },
+                    parameters: {
+                        sampleCount: 1 // Geração de apenas uma imagem
+                    }
                 };
-                // Alterado para o endpoint do modelo gemini-2.0-flash-preview-image-generation
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=${apiKey}`;
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
 
                 const response = await fetch(apiUrl, {
                     method: 'POST',
@@ -325,13 +320,13 @@
                 const result = await response.json();
                 hideLoading();
 
-                // Alterado para extrair a imagem do novo formato de resposta
-                const base64Data = result?.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
+                // *** Alteração: Extração da imagem do novo formato de resposta ***
+                const base64Data = result?.predictions?.[0]?.bytesBase64Encoded;
 
                 if (base64Data) {
                     addMessage({ imageData: base64Data }, 'ai', 'image');
-                    // Adiciona a imagem ao histórico e salva
-                    chatHistory.push({ role: "model", sender: 'ai', type: 'image', content: { imageData: base64Data } });
+                    // Salva a imagem no histórico
+                    chatHistory.push({ content: { imageData: base64Data }, sender: 'ai', type: 'image' });
                     saveChatToLocalStorage();
                 } else {
                     showAlert("Não foi possível gerar a imagem. Tente novamente com um prompt diferente.");
