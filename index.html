@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VilorBoty - Salvando com LocalStorage</title>
+    <title>VilorBoty - Versão de Teste Local</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -71,8 +71,15 @@
         let loadingIndicator = null;
         let isProcessing = false;
 
-        // A chave de API fornecida pelo usuário
-        const apiKey = "";
+        // IMPORTANTE: Por uma questão de segurança, NUNCA suba este código em um servidor com a chave visível.
+        // A chave só deve ser usada para testes em ambiente local.
+        // Substitua a string abaixo pela sua chave de API para que o código funcione localmente.
+        const apiKey = "AIzaSyBvfm_3o40Z26Z6_7CAz-8r6MSjPaWcR_o";
+
+        // A causa do erro 403 ao executar localmente é a política de segurança da API. 
+        // A API não permite que a chave seja usada diretamente de um arquivo local,
+        // apenas de um servidor web ou de um ambiente controlado como o Canvas.
+        // A solução profissional é usar um backend para fazer as chamadas.
 
         // Função para salvar o histórico no LocalStorage
         function saveChatToLocalStorage() {
@@ -157,16 +164,12 @@
             }
         }
 
-        // Lida com o envio da mensagem de texto (agora com API direta)
+        // Lida com o envio da mensagem de texto
         async function sendMessage() {
             if (isProcessing) return;
             const userMessage = chatInput.value.trim();
             if (userMessage === '') return;
             
-            if (!apiKey) {
-                // A API Key é fornecida pelo ambiente, então esta verificação é para garantir a funcionalidade em outros lugares.
-            }
-
             isProcessing = true;
             updateButtonStates();
             addMessage(userMessage, 'user');
@@ -191,9 +194,13 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-
+                
+                // Melhoria no tratamento de erro
                 if (!response.ok) {
-                    throw new Error('Erro na chamada da API: ' + response.statusText);
+                    console.error("Erro na chamada da API:", response.status, response.statusText);
+                    const errorBody = await response.text();
+                    console.error("Corpo da resposta da API:", errorBody);
+                    throw new Error(`Erro na chamada da API: ${response.status} ${response.statusText || ''}`);
                 }
 
                 const result = await response.json();
@@ -228,10 +235,6 @@
                 return;
             }
             
-            if (!apiKey) {
-                 // A API Key é fornecida pelo ambiente, então esta verificação é para garantir a funcionalidade em outros lugares.
-            }
-
             isProcessing = true;
             updateButtonStates();
             addMessage(userPrompt, 'user', 'text');
@@ -243,31 +246,36 @@
             showLoading();
 
             try {
-                // Usando o modelo imagen-3.0-generate-002 para melhor qualidade de imagem
+                // Alterado para incluir as duas modalidades (IMAGE, TEXT) para satisfazer a API
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=${apiKey}`;
+                
                 const payload = {
-                    instances: [{
-                        prompt: userPrompt
+                    contents: [{
+                        parts: [{ text: userPrompt }]
                     }],
-                    parameters: {
-                        sampleCount: 1
-                    }
+                    generationConfig: {
+                        responseModalities: ['IMAGE', 'TEXT'] // Corrigido
+                    },
                 };
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
 
                 const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-
+                
+                // Melhoria no tratamento de erro
                 if (!response.ok) {
-                    throw new Error('Erro na chamada da API de imagem: ' + response.statusText);
+                    console.error("Erro na chamada da API de imagem:", response.status, response.statusText);
+                    const errorBody = await response.text();
+                    console.error("Corpo da resposta da API:", errorBody);
+                    throw new Error(`Erro na chamada da API de imagem: ${response.status} ${response.statusText || ''}`);
                 }
                 
                 const result = await response.json();
                 hideLoading();
 
-                const base64Data = result?.predictions?.[0]?.bytesBase64Encoded;
+                const base64Data = result?.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
 
                 if (base64Data) {
                     addMessage({ imageData: base64Data }, 'ai', 'image');
