@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VilorBoty - Seu companheiro de IA</title>
+    <title>VilorBoty - Salvando com LocalStorage</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -17,43 +17,52 @@
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
 
-    <!-- Main container, more compact now -->
+    <!-- Container principal da aplicação -->
     <div class="bg-white rounded-lg shadow-xl w-full max-w-lg h-[90vh] overflow-hidden flex flex-col">
         
-        <!-- Chat header -->
+        <!-- Cabeçalho do chat -->
         <header class="bg-blue-600 text-white p-4 flex items-center justify-center rounded-t-lg">
             <h1 class="text-xl font-bold">VilorBoty</h1>
         </header>
 
-        <!-- Messages area, with optimized scroll -->
+        <!-- Área de mensagens do chat -->
         <div id="chat-container" class="flex-1 p-4 overflow-y-auto space-y-4 text-sm">
-            <!-- Welcome message from the AI -->
-            <div class="flex justify-start">
+            <!-- Mensagem de boas-vindas da IA -->
+            <div id="welcome-message" class="flex justify-start">
                 <div class="bg-blue-100 text-blue-800 rounded-lg p-3 max-w-[80%]">
-                    Olá! Eu sou o VilorBoty. Posso te ajudar com conversas e a criação de imagens.
+                    Olá! Eu sou o VilorBoty. Posso conversar com você e também gerar imagens.
                 </div>
             </div>
         </div>
 
-        <!-- Text input and buttons area -->
-        <div class="p-4 bg-gray-50 border-t border-gray-200 flex items-center">
+        <!-- Área de entrada de texto e botões -->
+        <div class="p-4 bg-gray-50 border-t border-gray-200 flex items-center flex-wrap">
             
-            <input type="text" id="chat-input" placeholder="Digite sua mensagem ou um prompt de imagem..." class="flex-1 p-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all">
+            <input type="text" id="chat-input" placeholder="Digite sua mensagem ou um prompt..." class="flex-1 p-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all min-w-[200px]">
             
-            <!-- Button to generate an image -->
-            <button id="generate-image-btn" class="ml-2 p-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm">
+            <!-- Botão para gerar imagem -->
+            <button id="generate-image-btn" class="mt-2 sm:mt-0 ml-0 sm:ml-2 p-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm w-full sm:w-auto">
                 Gerar Imagem
             </button>
-            
-            <!-- Send text button -->
-            <button id="send-button" class="ml-2 p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">
+
+            <!-- Botão de enviar texto -->
+            <button id="send-button" class="mt-2 sm:mt-0 ml-0 sm:ml-2 p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm w-full sm:w-auto">
                 Enviar
             </button>
         </div>
     </div>
 
+    <!-- Modal/Message box for alerts -->
+    <div id="alert-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-lg p-6 shadow-xl max-w-sm w-full">
+            <h3 class="text-lg font-bold mb-2">Atenção</h3>
+            <p id="alert-message" class="text-sm text-gray-700 mb-4"></p>
+            <button id="alert-close-btn" class="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">OK</button>
+        </div>
+    </div>
+
     <script>
-        // Utility functions for audio conversion
+        // Funções utilitárias para conversão de áudio
         const base64ToArrayBuffer = (base64) => {
             const binaryString = window.atob(base64);
             const len = binaryString.length;
@@ -69,7 +78,6 @@
             const buffer = new ArrayBuffer(44 + pcm16.length * 2);
             const view = new DataView(buffer);
             
-            // WAV header
             let offset = 0;
             const writeString = (str) => {
                 for (let i = 0; i < str.length; i++) {
@@ -81,20 +89,19 @@
             const writeUint16 = (val) => { view.setUint16(offset, val, true); offset += 2; };
 
             writeString('RIFF');
-            writeUint32(36 + pcm16.length * 2); // File size
+            writeUint32(36 + pcm16.length * 2);
             writeString('WAVE');
             writeString('fmt ');
-            writeUint32(16); // Subchunk1Size
-            writeUint16(1);  // AudioFormat (PCM)
-            writeUint16(1);  // NumChannels
+            writeUint32(16);
+            writeUint16(1);
+            writeUint16(1);
             writeUint32(sampleRate);
-            writeUint32(sampleRate * 2); // ByteRate
-            writeUint16(2);  // BlockAlign
-            writeUint16(16); // BitsPerSample
+            writeUint32(sampleRate * 2);
+            writeUint16(2);
+            writeUint16(16);
             writeString('data');
             writeUint32(pcm16.length * 2);
 
-            // Write PCM data
             for (let i = 0; i < pcm16.length; i++) {
                 view.setInt16(offset, pcm16[i], true);
                 offset += 2;
@@ -104,21 +111,52 @@
         };
 
 
-        // Selects UI elements
+        // Seleciona os elementos da interface
         const chatContainer = document.getElementById('chat-container');
         const chatInput = document.getElementById('chat-input');
         const sendButton = document.getElementById('send-button');
         const generateImageBtn = document.getElementById('generate-image-btn');
+        const alertModal = document.getElementById('alert-modal');
+        const alertMessage = document.getElementById('alert-message');
+        const alertCloseBtn = document.getElementById('alert-close-btn');
 
-        // Variables to store state
+        // Variáveis para armazenar estado
         let chatHistory = [];
         let loadingIndicator = null;
         let isProcessing = false;
 
-        // Adds a message to the chat, with support for text and image
+        // Função para salvar o histórico no LocalStorage
+        function saveChatToLocalStorage() {
+            localStorage.setItem('vilorboty-chat-history', JSON.stringify(chatHistory));
+        }
+
+        // Função para carregar o histórico do LocalStorage
+        function loadChatFromLocalStorage() {
+            const savedHistory = localStorage.getItem('vilorboty-chat-history');
+            if (savedHistory) {
+                chatHistory = JSON.parse(savedHistory);
+                // Limpa o chat e renderiza o histórico salvo
+                chatContainer.innerHTML = '';
+                const welcomeMessage = document.getElementById('welcome-message');
+                if (welcomeMessage) {
+                    chatContainer.appendChild(welcomeMessage);
+                }
+                
+                chatHistory.forEach(message => {
+                    addMessage(message.content, message.sender, message.type);
+                });
+            }
+        }
+
+        // Exibe um modal de alerta
+        function showAlert(message) {
+            alertMessage.textContent = message;
+            alertModal.style.display = 'flex';
+        }
+        
+        // Adiciona uma mensagem ao chat, com suporte para texto e imagem
         function addMessage(content, sender, type = 'text') {
             const messageElement = document.createElement('div');
-            // Align message to the right for the user and to the left for the AI
             messageElement.classList.add('flex', 'flex-col', sender === 'user' ? 'items-end' : 'items-start');
 
             if (type === 'text') {
@@ -129,18 +167,17 @@
                 textElement.innerText = content;
                 messageElement.appendChild(textElement);
             } else if (type === 'image') {
-                // Content for the generated image
-                const imageMessageElement = document.createElement('div');
-                imageMessageElement.classList.add('bg-blue-100', 'text-blue-800', 'rounded-lg', 'p-3', 'max-w-[80%]');
-                imageMessageElement.innerHTML = `
-                    <p><strong>Imagem gerada:</strong></p>
-                    <p class="text-sm my-2">${content.prompt}</p>
-                    <img src="${content.url}" alt="Imagem Gerada" class="rounded-lg w-full h-auto mt-2">
-                `;
-                messageElement.appendChild(imageMessageElement);
+                const imageContainer = document.createElement('div');
+                imageContainer.classList.add('bg-blue-100', 'text-blue-800', 'rounded-lg', 'p-3', 'max-w-[80%]', 'flex', 'flex-col');
+                imageContainer.innerHTML = `<p><strong>Imagem gerada:</strong></p>`;
+                const imageElement = document.createElement('img');
+                imageElement.src = `data:image/png;base64,${content.imageData}`;
+                imageElement.classList.add('rounded-lg', 'w-full', 'h-auto', 'mt-2');
+                imageContainer.appendChild(imageElement);
+                messageElement.appendChild(imageContainer);
             }
 
-            // Adds audio button only for AI text messages
+            // Adiciona o botão de áudio apenas para as mensagens de texto da IA
             if (sender === 'ai' && type === 'text') {
                 const audioBtn = document.createElement('button');
                 audioBtn.innerText = '🔊';
@@ -153,7 +190,7 @@
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
-        // Shows the loading indicator
+        // Simula o carregamento da resposta da IA
         function showLoading() {
             loadingIndicator = document.createElement('div');
             loadingIndicator.classList.add('flex', 'justify-start');
@@ -162,7 +199,7 @@
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
-        // Hides the loading indicator
+        // Remove o indicador de carregamento
         function hideLoading() {
             if (loadingIndicator) {
                 loadingIndicator.remove();
@@ -170,7 +207,7 @@
             }
         }
 
-        // Handles sending a text message
+        // Lida com o envio da mensagem de texto (agora com API direta)
         async function sendMessage() {
             if (isProcessing) return;
             const userMessage = chatInput.value.trim();
@@ -178,17 +215,23 @@
 
             isProcessing = true;
             addMessage(userMessage, 'user');
+            
+            // Adiciona a mensagem do usuário ao histórico e salva
+            chatHistory.push({ role: "user", parts: [{ text: userMessage }], sender: 'user', type: 'text', content: userMessage });
+            saveChatToLocalStorage();
+
             chatInput.value = '';
             
             const contents = [];
-            contents.push({ text: userMessage });
-            chatHistory.push({ role: "user", parts: contents });
+            chatHistory.filter(msg => msg.type === 'text').forEach(msg => {
+                contents.push({ role: msg.sender === 'user' ? 'user' : 'model', parts: [{ text: msg.content }] });
+            });
 
             showLoading();
 
             try {
-                const payload = { contents: chatHistory };
-                const apiKey = ""; 
+                const payload = { contents: contents };
+                const apiKey = ""; // A chave é injetada automaticamente
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
 
                 const response = await fetch(apiUrl, {
@@ -209,32 +252,41 @@
                     result.candidates[0].content.parts.length > 0) {
                     const aiResponseText = result.candidates[0].content.parts[0].text;
                     addMessage(aiResponseText, 'ai', 'text');
-                    chatHistory.push({ role: "model", parts: [{ text: aiResponseText }] });
+                    // Adiciona a mensagem da IA ao histórico e salva
+                    chatHistory.push({ role: "model", parts: [{ text: aiResponseText }], sender: 'ai', type: 'text', content: aiResponseText });
+                    saveChatToLocalStorage();
                 } else {
-                    addMessage("Não foi possível obter uma resposta. Tente novamente.", 'ai', 'text');
+                    showAlert("Não foi possível obter uma resposta. Tente novamente.");
                 }
             } catch (error) {
                 console.error("Erro ao enviar a mensagem para a IA:", error);
                 hideLoading();
-                addMessage("Desculpe, algo deu errado. Por favor, tente novamente mais tarde.", 'ai', 'text');
+                showAlert("Desculpe, algo deu errado. Por favor, tente novamente mais tarde.");
             } finally {
                 isProcessing = false;
             }
         }
         
-        // Generates an image using the Gemini API
+        // Função para gerar imagem (agora com API direta)
         async function generateImage() {
             if (isProcessing) return;
             const userPrompt = chatInput.value.trim();
-            if (userPrompt === '') return;
+            if (userPrompt === '') {
+                showAlert('Por favor, digite um prompt para a imagem.');
+                return;
+            }
 
             isProcessing = true;
             addMessage(userPrompt, 'user', 'text');
+            
+            // Adiciona a mensagem do usuário ao histórico e salva
+            chatHistory.push({ role: "user", parts: [{ text: userPrompt }], sender: 'user', type: 'text', content: userPrompt });
+            saveChatToLocalStorage();
+
             chatInput.value = '';
             showLoading();
 
             try {
-                // Use the imagen-3.0-generate-002 model for image generation
                 const payload = {
                     instances: {
                         prompt: userPrompt
@@ -243,7 +295,7 @@
                         "sampleCount": 1
                     }
                 };
-                const apiKey = ""; 
+                const apiKey = ""; // A chave é injetada automaticamente
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
 
                 let response;
@@ -252,7 +304,6 @@
                 let retryCount = 0;
                 const maxRetries = 3;
 
-                // Implement exponential backoff for retries
                 while (retryCount < maxRetries) {
                     try {
                         response = await fetch(apiUrl, {
@@ -264,22 +315,22 @@
                         if (response.ok) {
                             result = await response.json();
                             base64Data = result?.predictions?.[0]?.bytesBase64Encoded;
-                            break; // Success, exit the loop
-                        } else if (response.status === 429) { // Too Many Requests
+                            break;
+                        } else if (response.status === 429) {
                             const delay = Math.pow(2, retryCount) * 1000;
-                            console.warn(`Rate limit exceeded. Retrying in ${delay / 1000}s...`);
+                            console.warn(`Limite de requisições excedido. Tentando novamente em ${delay / 1000}s...`);
                             await new Promise(res => setTimeout(res, delay));
                             retryCount++;
                         } else {
-                            throw new Error('Erro na chamada da API: ' + response.statusText);
+                            throw new Error('Erro na chamada da API de imagem: ' + response.statusText);
                         }
                     } catch (error) {
-                        console.error(`Attempt ${retryCount + 1} failed:`, error);
+                        console.error(`Tentativa ${retryCount + 1} falhou:`, error);
                         if (retryCount >= maxRetries - 1) {
-                            throw error; // Re-throw the error on the last attempt
+                            throw error;
                         }
                         const delay = Math.pow(2, retryCount) * 1000;
-                        console.warn(`Retrying in ${delay / 1000}s...`);
+                        console.warn(`Tentando novamente em ${delay / 1000}s...`);
                         await new Promise(res => setTimeout(res, delay));
                         retryCount++;
                     }
@@ -288,24 +339,23 @@
                 hideLoading();
 
                 if (base64Data) {
-                    const imageUrl = `data:image/png;base64,${base64Data}`;
-                    addMessage({
-                        prompt: userPrompt,
-                        url: imageUrl
-                    }, 'ai', 'image');
+                    addMessage({ imageData: base64Data }, 'ai', 'image');
+                    // Adiciona a imagem ao histórico e salva
+                    chatHistory.push({ role: "model", sender: 'ai', type: 'image', content: { imageData: base64Data } });
+                    saveChatToLocalStorage();
                 } else {
-                    addMessage("Não foi possível gerar a imagem. Tente novamente com um prompt diferente.", 'ai', 'text');
+                    showAlert("Não foi possível gerar a imagem. Tente novamente com um prompt diferente.");
                 }
             } catch (error) {
                 console.error("Erro na geração de imagem:", error);
                 hideLoading();
-                addMessage("Desculpe, a geração de imagem falhou. Por favor, tente novamente mais tarde.", 'ai', 'text');
+                showAlert("Desculpe, a geração de imagem falhou. Por favor, tente novamente mais tarde.");
             } finally {
                 isProcessing = false;
             }
         }
 
-        // Handles audio playback (Text to Speech)
+        // Lida com a reprodução de áudio (Texto para Áudio)
         async function speakText(text, button) {
             button.innerText = '⏳';
             try {
@@ -344,22 +394,26 @@
                     const audio = new Audio(audioUrl);
                     audio.play();
                 } else {
-                    console.error("Error: Audio data not found in API response.");
+                    console.error("Erro: Dados de áudio não encontrados na resposta da API.");
                 }
             } catch (error) {
-                console.error("Error playing audio:", error);
+                console.error("Erro ao reproduzir áudio:", error);
             } finally {
                 button.innerText = '🔊';
             }
         }
         
-        // Handles the click on the send button
+        // Adiciona event listeners
+        window.addEventListener('DOMContentLoaded', () => {
+            loadChatFromLocalStorage();
+        });
         sendButton.addEventListener('click', sendMessage);
-
-        // Handles the click on the generate image button
         generateImageBtn.addEventListener('click', generateImage);
+        alertCloseBtn.addEventListener('click', () => {
+            alertModal.style.display = 'none';
+        });
 
-        // Handles the "Enter" key on the input field
+        // Lida com a tecla "Enter" no campo de input para enviar mensagens de texto
         chatInput.addEventListener('keydown', (event) => {
             if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault(); 
