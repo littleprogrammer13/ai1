@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VilorBoty - Seu companheiro de IA</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+
+    <!-- Main container, more compact now -->
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-lg h-[90vh] overflow-hidden flex flex-col">
+        
+        <!-- Chat header -->
+        <header class="bg-blue-600 text-white p-4 flex items-center justify-center rounded-t-lg">
+            <h1 class="text-xl font-bold">VilorBoty</h1>
+        </header>
+
+        <!-- Messages area, with optimized scroll -->
+        <div id="chat-container" class="flex-1 p-4 overflow-y-auto space-y-4 text-sm">
+            <!-- Welcome message from the AI -->
+            <div class="flex justify-start">
+                <div class="bg-blue-100 text-blue-800 rounded-lg p-3 max-w-[80%]">
+                    Olá! Eu sou o VilorBoty. Posso te ajudar com conversas e a criação de imagens.
+                </div>
+            </div>
+        </div>
+
+        <!-- Text input and buttons area -->
+        <div class="p-4 bg-gray-50 border-t border-gray-200 flex items-center">
+            
+            <input type="text" id="chat-input" placeholder="Digite sua mensagem ou um prompt de imagem..." class="flex-1 p-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all">
+            
+            <!-- Button to generate an image -->
+            <button id="generate-image-btn" class="ml-2 p-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm">
+                Gerar Imagem
+            </button>
+            
+            <!-- Send text button -->
+            <button id="send-button" class="ml-2 p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">
+                Enviar
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Utility functions for audio conversion
+        const base64ToArrayBuffer = (base64) => {
+            const binaryString = window.atob(base64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        };
+
+        const pcmToWav = (pcmData, sampleRate) => {
+            const pcm16 = new Int16Array(pcmData);
+            const buffer = new ArrayBuffer(44 + pcm16.length * 2);
+            const view = new DataView(buffer);
+            
+            // WAV header
+            let offset = 0;
+            const writeString = (str) => {
+                for (let i = 0; i < str.length; i++) {
+                    view.setUint8(offset + i, str.charCodeAt(i));
+                }
+                offset += str.length;
+            };
+            const writeUint32 = (val) => { view.setUint32(offset, val, true); offset += 4; };
+            const writeUint16 = (val) => { view.setUint16(offset, val, true); offset += 2; };
+
+            writeString('RIFF');
+            writeUint32(36 + pcm16.length * 2); // File size
+            writeString('WAVE');
+            writeString('fmt ');
+            writeUint32(16); // Subchunk1Size
+            writeUint16(1);  // AudioFormat (PCM)
+            writeUint16(1);  // NumChannels
+            writeUint32(sampleRate);
+            writeUint32(sampleRate * 2); // ByteRate
+            writeUint16(2);  // BlockAlign
+            writeUint16(16); // BitsPerSample
+            writeString('data');
+            writeUint32(pcm16.length * 2);
+
+            // Write PCM data
+            for (let i = 0; i < pcm16.length; i++) {
+                view.setInt16(offset, pcm16[i], true);
+                offset += 2;
+            }
+
+            return new Blob([view], { type: 'audio/wav' });
+        };
+
+
+        // Selects UI elements
+        const chatContainer = document.getElementById('chat-container');
+        const chatInput = document.getElementById('chat-input');
+        const sendButton = document.getElementById('send-button');
+        const generateImageBtn = document.getElementById('generate-image-btn');
+
+        // Variables to store state
+        let chatHistory = [];
+        let loadingIndicator = null;
+        let isProcessing = false;
+
+        // Adds a message to the chat, with support for text and image
+        function addMessage(content, sender, type = 'text') {
+            const messageElement = document.createElement('div');
+            // Align message to the right for the user and to the left for the AI
+            messageElement.classList.add('flex', 'flex-col', sender === 'user' ? 'items-end' : 'items-start');
+
+            if (type === 'text') {
+                const textElement = document.createElement('div');
+                textElement.classList.add('rounded-lg', 'p-3', 'max-w-[80%]', 'break-words', 'whitespace-pre-wrap');
+                textElement.classList.add(sender === 'user' ? 'bg-blue-600' : 'bg-blue-100');
+                textElement.classList.add(sender === 'user' ? 'text-white' : 'text-gray-800');
+                textElement.innerText = content;
+                messageElement.appendChild(textElement);
+            } else if (type === 'image') {
+                // Content for the generated image
+                const imageMessageElement = document.createElement('div');
+                imageMessageElement.classList.add('bg-blue-100', 'text-blue-800', 'rounded-lg', 'p-3', 'max-w-[80%]');
+                imageMessageElement.innerHTML = `
+                    <p><strong>Imagem gerada:</strong></p>
+                    <p class="text-sm my-2">${content.prompt}</p>
+                    <img src="${content.url}" alt="Imagem Gerada" class="rounded-lg w-full h-auto mt-2">
+                `;
+                messageElement.appendChild(imageMessageElement);
+            }
+
+            // Adds audio button only for AI text messages
+            if (sender === 'ai' && type === 'text') {
+                const audioBtn = document.createElement('button');
+                audioBtn.innerText = '🔊';
+                audioBtn.classList.add('play-audio-btn', 'text-gray-500', 'hover:text-gray-700', 'ml-1', 'text-sm');
+                audioBtn.onclick = () => speakText(content, audioBtn);
+                messageElement.lastChild.appendChild(audioBtn);
+            }
+
+            chatContainer.appendChild(messageElement);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Shows the loading indicator
+        function showLoading() {
+            loadingIndicator = document.createElement('div');
+            loadingIndicator.classList.add('flex', 'justify-start');
+            loadingIndicator.innerHTML = '<div class="bg-gray-200 text-gray-700 rounded-lg p-3 max-w-[80%]">...</div>';
+            chatContainer.appendChild(loadingIndicator);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Hides the loading indicator
+        function hideLoading() {
+            if (loadingIndicator) {
+                loadingIndicator.remove();
+                loadingIndicator = null;
+            }
+        }
+
+        // Handles sending a text message
+        async function sendMessage() {
+            if (isProcessing) return;
+            const userMessage = chatInput.value.trim();
+            if (userMessage === '') return;
+
+            isProcessing = true;
+            addMessage(userMessage, 'user');
+            chatInput.value = '';
+            
+            const contents = [];
+            contents.push({ text: userMessage });
+            chatHistory.push({ role: "user", parts: contents });
+
+            showLoading();
+
+            try {
+                const payload = { contents: chatHistory };
+                const apiKey = ""; 
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error('Erro na chamada da API: ' + response.statusText);
+                }
+
+                const result = await response.json();
+                hideLoading();
+
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const aiResponseText = result.candidates[0].content.parts[0].text;
+                    addMessage(aiResponseText, 'ai', 'text');
+                    chatHistory.push({ role: "model", parts: [{ text: aiResponseText }] });
+                } else {
+                    addMessage("Não foi possível obter uma resposta. Tente novamente.", 'ai', 'text');
+                }
+            } catch (error) {
+                console.error("Erro ao enviar a mensagem para a IA:", error);
+                hideLoading();
+                addMessage("Desculpe, algo deu errado. Por favor, tente novamente mais tarde.", 'ai', 'text');
+            } finally {
+                isProcessing = false;
+            }
+        }
+        
+        // Generates an image using the Gemini API
+        async function generateImage() {
+            if (isProcessing) return;
+            const userPrompt = chatInput.value.trim();
+            if (userPrompt === '') return;
+
+            isProcessing = true;
+            addMessage(userPrompt, 'user', 'text');
+            chatInput.value = '';
+            showLoading();
+
+            try {
+                const payload = {
+                    contents: [{
+                        parts: [{ text: userPrompt }]
+                    }],
+                    generationConfig: {
+                        responseModalities: ['TEXT', 'IMAGE']
+                    },
+                };
+                const apiKey = ""; 
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=${apiKey}`;
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Erro na chamada da API: ' + response.statusText);
+                }
+                
+                const result = await response.json();
+                hideLoading();
+
+                const base64Data = result?.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
+                if (base64Data) {
+                    const imageUrl = `data:image/png;base64,${base64Data}`;
+                    addMessage({
+                        prompt: userPrompt,
+                        url: imageUrl
+                    }, 'ai', 'image');
+                } else {
+                    addMessage("Não foi possível gerar a imagem. Tente novamente com um prompt diferente.", 'ai', 'text');
+                }
+            } catch (error) {
+                console.error("Erro na geração de imagem:", error);
+                hideLoading();
+                addMessage("Desculpe, a geração de imagem falhou. Por favor, tente novamente mais tarde.", 'ai', 'text');
+            } finally {
+                isProcessing = false;
+            }
+        }
+
+        // Handles audio playback (Text to Speech)
+        async function speakText(text, button) {
+            button.innerText = '⏳';
+            try {
+                const payload = {
+                    contents: [{ parts: [{ text: text }] }],
+                    generationConfig: {
+                        responseModalities: ["AUDIO"],
+                        speechConfig: {
+                            voiceConfig: {
+                                prebuiltVoiceConfig: { voiceName: "Kore" }
+                            }
+                        }
+                    },
+                    model: "gemini-2.5-flash-preview-tts"
+                };
+                
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+                
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const result = await response.json();
+                const part = result?.candidates?.[0]?.content?.parts?.[0];
+                const audioData = part?.inlineData?.data;
+                const mimeType = part?.inlineData?.mimeType;
+
+                if (audioData && mimeType && mimeType.startsWith("audio/")) {
+                    const sampleRate = parseInt(mimeType.match(/rate=(\d+)/)[1], 10);
+                    const pcmData = base64ToArrayBuffer(audioData);
+                    const wavBlob = pcmToWav(pcmData, sampleRate);
+                    const audioUrl = URL.createObjectURL(wavBlob);
+                    const audio = new Audio(audioUrl);
+                    audio.play();
+                } else {
+                    console.error("Error: Audio data not found in API response.");
+                }
+            } catch (error) {
+                console.error("Error playing audio:", error);
+            } finally {
+                button.innerText = '🔊';
+            }
+        }
+        
+        // Handles the click on the send button
+        sendButton.addEventListener('click', sendMessage);
+
+        // Handles the click on the generate image button
+        generateImageBtn.addEventListener('click', generateImage);
+
+        // Handles the "Enter" key on the input field
+        chatInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault(); 
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
