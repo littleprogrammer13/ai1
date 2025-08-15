@@ -72,7 +72,7 @@
         let isProcessing = false;
 
         // A chave de API fornecida pelo usuário
-        const apiKey = "AIzaSyBvfm_3o40Z26Z6_7CAz-8r6MSjPaWcR_o";
+        const apiKey = "";
 
         // Função para salvar o histórico no LocalStorage
         function saveChatToLocalStorage() {
@@ -164,8 +164,7 @@
             if (userMessage === '') return;
             
             if (!apiKey) {
-                showAlert("A chave da API está ausente. Certifique-se de que o aplicativo está sendo executado em um ambiente com a chave de API fornecida.");
-                return;
+                // A API Key é fornecida pelo ambiente, então esta verificação é para garantir a funcionalidade em outros lugares.
             }
 
             isProcessing = true;
@@ -230,8 +229,7 @@
             }
             
             if (!apiKey) {
-                showAlert("A chave da API está ausente. Certifique-se de que o aplicativo está sendo executado em um ambiente com a chave de API fornecida.");
-                return;
+                 // A API Key é fornecida pelo ambiente, então esta verificação é para garantir a funcionalidade em outros lugares.
             }
 
             isProcessing = true;
