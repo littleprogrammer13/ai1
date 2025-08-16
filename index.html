@@ -84,7 +84,8 @@
     <!-- Container de Login (inicialmente visível) -->
     <div id="login-container" class="auth-container">
         <h1 class="text-3xl font-bold text-gray-800 mb-4">Acesso ao VilorBoty</h1>
-        <p class="text-gray-600 mb-6">Insira sua chave de acesso para começar a usar.</p>
+        <p class="text-gray-600 mb-6">Insira sua chave de acesso para começar a usar.
+        Para conseguir a chave, contate: suportealloneai@gmail.com</p>
         
         <input type="text" id="access-key-input" class="p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-gray-50 text-gray-800 shadow-sm" placeholder="Sua Chave de Acesso" required>
         
@@ -115,8 +116,9 @@
             <select id="model-select" class="p-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-gray-800 shadow-sm w-full sm:w-auto">
                 <!-- Modelos do OpenRouter com Puter.ai -->
                 <optgroup label="OpenAI (via OpenRouter)">
-                    <option value="openai/gpt-4o-mini" selected>GPT-4o mini</option>
+                    <option value="openai/gpt-5">GPT-5</option> <!-- Adicionado GPT-5 -->
                     <option value="openai/gpt-4o">GPT-4o</option>
+                    <option value="openai/gpt-4o-mini" selected>GPT-4o mini</option>
                 </optgroup>
                 <optgroup label="Cohere (via OpenRouter)">
                     <option value="cohere/command-r-plus">Command R+</option>
@@ -226,7 +228,7 @@
         // Esta chave é para as chamadas diretas aos modelos Google (Imagem, TTS).
         // Para Puter.ai (chat de texto), a autenticação é gerenciada pelo Puter.ai,
         // mas alguns modelos OpenRouter podem exigir sua própria chave OpenRouter configurada no Puter.ai.
-        const apiKey = "AIzaSyBvfm_3o40Z26Z6_7CAz-8r6MSjPaWcR_o"; // <-- SUBSTITUA PELA SUA CHAVE DE API REAL DO GOOGLE AI STUDIO / GEMINI!
+        const apiKey = "YOUR_GOOGLE_GEMINI_API_KEY_HERE"; // <-- SUBSTITUA PELA SUA CHAVE DE API REAL DO GOOGLE AI STUDIO / GEMINI!
 
         // --- Utility Chat Functions ---
 
