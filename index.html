@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VilorBoty</title>
+    <title>All-In-One AI: VilorBoty</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -13,36 +13,118 @@
             font-family: 'Inter', sans-serif;
             background-color: #f3f4f6;
         }
+        .hidden {
+            display: none !important;
+        }
+        .auth-container, .main-chat-container {
+            background-color: #ffffff;
+            border-radius: 1.5rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 100%;
+            padding: 2.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            text-align: center;
+        }
+        .message-box {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: #333;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 99999;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            pointer-events: none;
+        }
+        .message-box.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 99998;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        }
+        .loading-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
 
-    <!-- Container principal da aplicação -->
-    <div class="bg-white rounded-lg shadow-xl w-full max-w-lg h-[90vh] overflow-hidden flex flex-col">
+    <!-- Container de Login (inicialmente visível) -->
+    <div id="login-container" class="auth-container">
+        <h1 class="text-3xl font-bold text-gray-800 mb-4">Acesso ao VilorBoty</h1>
+        <p class="text-gray-600 mb-6">Insira sua chave de acesso para começar a usar.</p>
+        
+        <input type="text" id="access-key-input" class="p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-gray-50 text-gray-800 shadow-sm" placeholder="Sua Chave de Acesso" required>
+        
+        <button id="access-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transform transition duration-300 ease-in-out hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-300">
+            Acessar Chat
+        </button>
+        <p id="access-error-message" class="text-red-600 mt-4 hidden">Chave inválida ou expirada. Tente novamente.</p>
+    </div>
+
+    <!-- Container principal da aplicação de chat (inicialmente oculto) -->
+    <div id="main-chat-container" class="bg-white rounded-lg shadow-xl w-full max-w-lg h-[90vh] overflow-hidden flex flex-col hidden">
         
         <!-- Cabeçalho do chat -->
         <header class="bg-blue-600 text-white p-4 flex items-center justify-center rounded-t-lg">
-            <h1 class="text-xl font-bold">VilorBoty</h1>
+            <h1 class="text-xl font-bold">All-In-One AI: VilorBoty</h1>
         </header>
 
         <!-- Área de mensagens do chat -->
         <div id="chat-container" class="flex-1 p-4 overflow-y-auto space-y-4 text-sm">
-            <!-- Mensagem de boas-vindas da IA será adicionada via JS -->
+            <!-- Mensagens da IA e do usuário serão adicionadas aqui via JavaScript -->
         </div>
 
         <!-- Área de entrada de texto e botões -->
-        <div class="p-4 bg-gray-50 border-t border-gray-200 flex items-center flex-wrap">
+        <div class="p-4 bg-gray-50 border-t border-gray-200 flex items-center flex-wrap gap-2">
             
-            <input type="text" id="chat-input" placeholder="Digite sua mensagem ou um prompt..." class="flex-1 p-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all min-w-[200px]">
+            <input type="text" id="chat-input" placeholder="Digite sua mensagem, prompt ou texto para falar..." class="flex-1 p-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all min-w-[200px]">
             
             <!-- Botão para gerar imagem -->
-            <button id="generate-image-btn" class="mt-2 sm:mt-0 ml-0 sm:ml-2 p-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed">
+            <button id="generate-image-btn" class="p-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed">
                 Gerar Imagem
             </button>
 
+            <!-- Botão para Texto para Fala (TTS) -->
+            <button id="synthesize-speech-btn" class="p-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors text-sm w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed">
+                Falar Texto
+            </button>
+
             <!-- Botão de enviar texto -->
-            <button id="send-button" class="mt-2 sm:mt-0 ml-0 sm:ml-2 p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed">
-                Enviar
+            <button id="send-button" class="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed">
+                Enviar Mensagem
             </button>
         </div>
     </div>
@@ -50,77 +132,111 @@
     <!-- Modal/Message box for alerts -->
     <div id="alert-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center p-4">
         <div class="bg-white rounded-lg p-6 shadow-xl max-w-sm w-full">
-            <h3 class="text-lg font-bold mb-2">Atenção</h3>
+            <h3 class="text-lg font-bold mb-2">Atenção!</h3>
             <p id="alert-message" class="text-sm text-gray-700 mb-4"></p>
             <button id="alert-close-btn" class="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">OK</button>
         </div>
     </div>
 
-    <script>
-        // Seleciona os elementos da interface
-        const chatContainer = document.getElementById('chat-container');
-        const chatInput = document.getElementById('chat-input');
-        const sendButton = document.getElementById('send-button');
-        const generateImageBtn = document.getElementById('generate-image-btn');
+    <script type="module">
+        // Firebase imports for Firestore operations
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+        import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+
+        // Firebase project configuration (SAME AS YOUR ADMIN PANEL AND FIREBASE CONSOLE)
+        const firebaseConfig = {
+            apiKey: "AIzaSyCov5xP4aFRo3QPFCxCRQGN7X59dR9ZLF4", 
+            authDomain: "isiskd.firebaseapp.com",
+            projectId: "isiskd",
+            storageBucket: "isiskd.firebasestorage.app",
+            messagingSenderId: "1055585794088",
+            appId: "1:1055585794088:web:0c7eab96a4e696cd6f9d1d",
+            measurementId: "G-5S8S16K6KF"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Your APP_ID for Firestore paths
+        const APP_ID = "1:1055585794088:web:0c7eab96a4e696cd6f9d1d";
+
+        // DOM Elements for Login and Chat
+        const loginContainer = document.getElementById('login-container');
+        const accessKeyInput = document.getElementById('access-key-input');
+        const accessButton = document.getElementById('access-button');
+        const accessErrorMessage = document.getElementById('access-error-message');
+        const mainChatContainer = document.getElementById('main-chat-container');
+
+        const chatContainer = mainChatContainer.querySelector('#chat-container'); 
+        const chatInput = mainChatContainer.querySelector('#chat-input');
+        const sendButton = mainChatContainer.querySelector('#send-button');
+        const generateImageBtn = mainChatContainer.querySelector('#generate-image-btn');
+        const synthesizeSpeechBtn = mainChatContainer.querySelector('#synthesize-speech-btn');
         const alertModal = document.getElementById('alert-modal');
         const alertMessage = document.getElementById('alert-message');
         const alertCloseBtn = document.getElementById('alert-close-btn');
 
-        // Variáveis para armazenar estado
+        // Variables for chat state and processing
         let chatHistory = [];
         let loadingIndicator = null;
-        let isProcessing = false;
+        let isProcessing = false; // Flag to control if an API request is in progress
+        let activeAccessKey = null; // Store the validated access key
 
-        // IMPORTANTE: Por uma questão de segurança, NUNCA suba este código em um servidor com a chave visível.
-        // A chave só deve ser usada para testes em ambiente local.
-        // Substitua a string abaixo pela sua chave de API para que o código funcione localmente.
-        const apiKey = "AIzaSyBvfm_3o40Z26Z6_7CAz-8r6MSjPaWcR_o";
+        // ⚠️ ATENÇÃO: CHAVE DE API DIRETAMENTE NO FRONTEND! ⚠️
+        // Por uma questão de segurança, NUNCA suba este código em um servidor público com a chave visível.
+        // Qualquer pessoa pode inspecionar o código-fonte e roubar sua chave.
+        // Esta abordagem é APENAS para testes locais ou ambientes controlados.
+        // Para um ambiente de produção (como GitHub Pages acessado publicamente),
+        // a solução PROFISSIONAL e SEGURA é usar um BACKEND (ex: Firebase Cloud Functions)
+        // para fazer as chamadas à API do Gemini, protegendo sua chave.
+        const apiKey = "AIzaSyBvfm_3o40Z26Z6_7CAz-8r6MSjPaWcR_o"; // <-- SUBSTITUA PELA SUA CHAVE DE API REAL DO GOOGLE AI STUDIO / GEMINI!
 
-        // A causa do erro 403 ao executar localmente é a política de segurança da API. 
-        // A API não permite que a chave seja usada diretamente de um arquivo local,
-        // apenas de um servidor web ou de um ambiente controlado como o Canvas.
-        // A solução profissional é usar um backend para fazer as chamadas.
+        // --- Utility Chat Functions ---
 
-        // Função para salvar o histórico no LocalStorage
+        // Save chat history to LocalStorage
         function saveChatToLocalStorage() {
             localStorage.setItem('vilorboty-chat-history', JSON.stringify(chatHistory));
         }
 
-        // Função para carregar o histórico do LocalStorage
+        // Load chat history from LocalStorage
         function loadChatFromLocalStorage() {
             const savedHistory = localStorage.getItem('vilorboty-chat-history');
             if (savedHistory) {
-                chatHistory = JSON.parse(savedHistory);
+                chatHistory = JSON.parse(savedHistory).map(msg => {
+                    if (msg.type === 'image' && typeof msg.content === 'object' && msg.content.imageData) {
+                        return { content: msg.content, sender: msg.sender, type: 'image' };
+                    }
+                    return { content: msg.content, sender: msg.sender, type: 'text' };
+                });
             } else {
-                // Adiciona uma mensagem de boas-vindas se o histórico estiver vazio
                 chatHistory.push({
-                    content: 'Olá! Eu sou o VilorBoty. Posso conversar com você e também gerar imagens.',
+                    content: 'Olá! Eu sou o VilorBoty, seu assistente de IA da All-In-One AI. Posso conversar com você, gerar imagens e até falar o texto! Como posso ajudar hoje?',
                     sender: 'ai',
                     type: 'text'
                 });
             }
-            
-            // Limpa o chat e renderiza o histórico completo do array
             chatContainer.innerHTML = '';
             chatHistory.forEach(message => {
                 addMessage(message.content, message.sender, message.type);
             });
         }
 
-        // Função para atualizar o estado dos botões, desabilitando-os durante o processamento
+        // Update button states (disable during processing)
         function updateButtonStates() {
             const shouldDisable = isProcessing;
             sendButton.disabled = shouldDisable;
             generateImageBtn.disabled = shouldDisable;
+            synthesizeSpeechBtn.disabled = shouldDisable;
         }
 
-        // Exibe um modal de alerta
+        // Display a custom alert modal
         function showAlert(message) {
             alertMessage.textContent = message;
             alertModal.style.display = 'flex';
         }
         
-        // Adiciona uma mensagem ao chat, com suporte para texto e imagem
+        // Add a message to the chat (text, image, or audio)
         function addMessage(content, sender, type = 'text') {
             const messageElement = document.createElement('div');
             messageElement.classList.add('flex', 'flex-col', sender === 'user' ? 'items-end' : 'items-start');
@@ -132,31 +248,42 @@
                 textElement.classList.add(sender === 'user' ? 'text-white' : 'text-gray-800');
                 textElement.innerText = content;
                 messageElement.appendChild(textElement);
-            } else if (type === 'image') {
+            } else if (type === 'image' && content.imageData) {
                 const imageContainer = document.createElement('div');
                 imageContainer.classList.add('bg-blue-100', 'text-blue-800', 'rounded-lg', 'p-3', 'max-w-[80%]', 'flex', 'flex-col');
-                imageContainer.innerHTML = `<p><strong>Imagem gerada:</strong></p>`;
+                imageContainer.innerHTML = `<p class="text-gray-800"><strong>Imagem gerada pela IA:</strong></p>`;
                 const imageElement = document.createElement('img');
                 imageElement.src = `data:image/png;base64,${content.imageData}`;
                 imageElement.classList.add('rounded-lg', 'w-full', 'h-auto', 'mt-2');
+                imageElement.alt = "Imagem gerada pela IA"; 
                 imageContainer.appendChild(imageElement);
                 messageElement.appendChild(imageContainer);
+            } else if (type === 'audio' && content.audioUrl) {
+                const audioContainer = document.createElement('div');
+                audioContainer.classList.add('bg-blue-100', 'text-gray-800', 'rounded-lg', 'p-3', 'max-w-[80%]', 'flex', 'flex-col');
+                audioContainer.innerHTML = `<p class="text-gray-800"><strong>Áudio gerado:</strong></p>`;
+                const audioElement = document.createElement('audio');
+                audioElement.controls = true;
+                audioElement.src = content.audioUrl;
+                audioElement.classList.add('mt-2');
+                audioContainer.appendChild(audioElement);
+                messageElement.appendChild(audioContainer);
             }
 
             chatContainer.appendChild(messageElement);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+            chatContainer.scrollTop = chatContainer.scrollHeight; 
         }
 
-        // Simula o carregamento da resposta da IA
+        // Show loading indicator
         function showLoading() {
             loadingIndicator = document.createElement('div');
             loadingIndicator.classList.add('flex', 'justify-start');
-            loadingIndicator.innerHTML = '<div class="bg-gray-200 text-gray-700 rounded-lg p-3 max-w-[80%]">...</div>';
+            loadingIndicator.innerHTML = '<div class="bg-gray-200 text-gray-700 rounded-lg p-3 max-w-[80%]">Digitando...</div>';
             chatContainer.appendChild(loadingIndicator);
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
-        // Remove o indicador de carregamento
+        // Hide loading indicator
         function hideLoading() {
             if (loadingIndicator) {
                 loadingIndicator.remove();
@@ -164,7 +291,63 @@
             }
         }
 
-        // Lida com o envio da mensagem de texto
+        // Utility functions for Audio (PCM to WAV conversion)
+        function base64ToArrayBuffer(base64) {
+            const binaryString = window.atob(base64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        function pcmToWav(pcm16, sampleRate) {
+            const numChannels = 1;
+            const bytesPerSample = 2; // PCM 16-bit
+            const blockAlign = numChannels * bytesPerSample;
+            const byteRate = sampleRate * blockAlign;
+
+            const wavBuffer = new ArrayBuffer(44 + pcm16.length * bytesPerSample);
+            const view = new DataView(wavBuffer);
+
+            // RIFF chunk
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + pcm16.length * bytesPerSample, true);
+            writeString(view, 8, 'WAVE');
+
+            // FMT sub-chunk
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true); // Subchunk1Size for PCM
+            view.setUint16(20, 1, true); // AudioFormat (1 for PCM)
+            view.setUint16(22, numChannels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, byteRate, true);
+            view.setUint16(32, blockAlign, true);
+            view.setUint16(34, bytesPerSample * 8, true); // Bits per sample
+
+            // DATA sub-chunk
+            writeString(view, 36, 'data');
+            view.setUint32(40, pcm16.length * bytesPerSample, true);
+
+            // Write PCM data
+            let offset = 44;
+            for (let i = 0; i < pcm16.length; i++) {
+                view.setInt16(offset, pcm16[i], true);
+                offset += bytesPerSample;
+            }
+
+            return new Blob([wavBuffer], { type: 'audio/wav' });
+        }
+
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+
+        // --- Core AI Interaction Functions ---
+
         async function sendMessage() {
             if (isProcessing) return;
             const userMessage = chatInput.value.trim();
@@ -195,9 +378,8 @@
                     body: JSON.stringify(payload)
                 });
                 
-                // Melhoria no tratamento de erro
                 if (!response.ok) {
-                    console.error("Erro na chamada da API:", response.status, response.statusText);
+                    console.error("Erro na chamada da API de texto:", response.status, response.statusText);
                     const errorBody = await response.text();
                     console.error("Corpo da resposta da API:", errorBody);
                     throw new Error(`Erro na chamada da API: ${response.status} ${response.statusText || ''}`);
@@ -226,7 +408,6 @@
             }
         }
         
-        // Função para gerar imagem
         async function generateImage() {
             if (isProcessing) return;
             const userPrompt = chatInput.value.trim();
@@ -246,16 +427,11 @@
             showLoading();
 
             try {
-                // Alterado para incluir as duas modalidades (IMAGE, TEXT) para satisfazer a API
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=${apiKey}`;
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
                 
                 const payload = {
-                    contents: [{
-                        parts: [{ text: userPrompt }]
-                    }],
-                    generationConfig: {
-                        responseModalities: ['IMAGE', 'TEXT'] // Corrigido
-                    },
+                    instances: { prompt: userPrompt },
+                    parameters: { "sampleCount": 1 }
                 };
 
                 const response = await fetch(apiUrl, {
@@ -264,7 +440,6 @@
                     body: JSON.stringify(payload)
                 });
                 
-                // Melhoria no tratamento de erro
                 if (!response.ok) {
                     console.error("Erro na chamada da API de imagem:", response.status, response.statusText);
                     const errorBody = await response.text();
@@ -275,7 +450,7 @@
                 const result = await response.json();
                 hideLoading();
 
-                const base64Data = result?.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
+                const base64Data = result?.predictions?.[0]?.bytesBase64Encoded;
 
                 if (base64Data) {
                     addMessage({ imageData: base64Data }, 'ai', 'image');
@@ -293,22 +468,192 @@
                 updateButtonStates();
             }
         }
+
+        async function synthesizeSpeech() {
+            if (isProcessing) return;
+            const textToSpeak = chatInput.value.trim();
+            if (textToSpeak === '') {
+                showAlert('Por favor, digite o texto que deseja que eu fale.');
+                return;
+            }
+
+            isProcessing = true;
+            updateButtonStates();
+            addMessage(textToSpeak, 'user', 'text');
+
+            chatHistory.push({ content: textToSpeak, sender: 'user', type: 'text' });
+            saveChatToLocalStorage();
+
+            chatInput.value = '';
+            showLoading();
+
+            try {
+                const payload = {
+                    contents: [{
+                        parts: [{ text: textToSpeak }]
+                    }],
+                    generationConfig: {
+                        responseModalities: ["AUDIO"],
+                        speechConfig: {
+                            voiceConfig: {
+                                prebuiltVoiceConfig: { voiceName: "Kore" }
+                            }
+                        }
+                    },
+                    model: "gemini-2.5-flash-preview-tts"
+                };
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    console.error("Erro na chamada da API de TTS:", response.status, response.statusText);
+                    const errorBody = await response.text();
+                    console.error("Corpo da resposta da API de TTS:", errorBody);
+                    throw new Error(`Erro na chamada da API de TTS: ${response.status} ${response.statusText || ''}`);
+                }
+
+                const result = await response.json();
+                hideLoading();
+
+                const part = result?.candidates?.[0]?.content?.parts?.[0];
+                const audioData = part?.inlineData?.data;
+                const mimeType = part?.inlineData?.mimeType;
+
+                if (audioData && mimeType && mimeType.startsWith("audio/L16")) {
+                    const sampleRateMatch = mimeType.match(/rate=(\d+)/);
+                    const sampleRate = sampleRateMatch ? parseInt(sampleRateMatch[1], 10) : 16000;
+                    
+                    const pcmData = base64ToArrayBuffer(audioData);
+                    const pcm16 = new Int16Array(pcmData);
+                    const wavBlob = pcmToWav(pcm16, sampleRate);
+                    const audioUrl = URL.createObjectURL(wavBlob);
+
+                    addMessage({ audioUrl: audioUrl }, 'ai', 'audio');
+                    chatHistory.push({ content: `Áudio: "${textToSpeak}"`, sender: 'ai', type: 'text' });
+                    saveChatToLocalStorage();
+
+                    const audio = new Audio(audioUrl);
+                    audio.play();
+
+                } else {
+                    showAlert("Não foi possível sintetizar a fala. Verifique o texto e tente novamente.");
+                }
+            } catch (error) {
+                console.error("Erro na síntese de fala:", error);
+                hideLoading();
+                showAlert("Desculpe, a síntese de fala falhou. Por favor, tente novamente mais tarde.");
+            } finally {
+                isProcessing = false;
+                updateButtonStates();
+            }
+        }
         
-        // Adiciona event listeners
+        // --- Access Key Login Logic ---
+        async function validateAccessKey() {
+            const enteredKey = accessKeyInput.value.trim();
+            if (!enteredKey) {
+                accessErrorMessage.textContent = "Por favor, insira uma chave de acesso.";
+                accessErrorMessage.classList.remove('hidden');
+                return;
+            }
+
+            toggleLoading(true);
+            accessErrorMessage.classList.add('hidden');
+
+            try {
+                const keyDocRef = doc(db, `/artifacts/${APP_ID}/public/data/accessKeys`, enteredKey);
+                const keyDocSnap = await getDoc(keyDocRef);
+
+                if (keyDocSnap.exists()) {
+                    const keyData = keyDocSnap.data();
+                    const now = Date.now();
+                    const expiresAtMillis = keyData.expiresAt;
+
+                    if (keyData.status === 'active' && expiresAtMillis > now) {
+                        // Key is valid and active
+                        // Simulate device locking (still client-side for "no backend" constraint)
+                        let deviceId = localStorage.getItem('vilorboty-device-id');
+                        if (!deviceId) {
+                            deviceId = crypto.randomUUID(); // Generate a unique ID for this browser
+                            localStorage.setItem('vilorboty-device-id', deviceId);
+                        }
+
+                        if (keyData.lockedToDeviceId === null) {
+                            // Lock the key to this device (this update requires Firestore rule to allow write)
+                            await updateDoc(keyDocRef, { lockedToDeviceId: deviceId });
+                            console.log(`Chave ${enteredKey} bloqueada para o dispositivo ${deviceId}.`);
+                            activeAccessKey = enteredKey;
+                            sessionStorage.setItem('vilorboty-active-key', enteredKey); // Keep logged in for session
+                            loginContainer.classList.add('hidden');
+                            mainChatContainer.classList.remove('hidden');
+                            loadChatFromLocalStorage(); // Load chat history after login
+                        } else if (keyData.lockedToDeviceId === deviceId) {
+                            // Key is already locked to this device, allow access
+                            activeAccessKey = enteredKey;
+                            sessionStorage.setItem('vilorboty-active-key', enteredKey);
+                            loginContainer.classList.add('hidden');
+                            mainChatContainer.classList.remove('hidden');
+                            loadChatFromLocalStorage(); // Load chat history after login
+                        } else {
+                            // Key is locked to a different device
+                            accessErrorMessage.textContent = "Chave já está em uso em outro dispositivo. Contate o suporte.";
+                            accessErrorMessage.classList.remove('hidden');
+                        }
+                    } else {
+                        accessErrorMessage.textContent = "Chave expirada ou inativa. Contate o suporte.";
+                        accessErrorMessage.classList.remove('hidden');
+                    }
+                } else {
+                    accessErrorMessage.textContent = "Chave de acesso não encontrada. Verifique e tente novamente.";
+                    accessErrorMessage.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error("Erro ao validar chave de acesso:", error);
+                accessErrorMessage.textContent = `Erro ao validar chave: ${error.message}. Tente novamente.`;
+                accessErrorMessage.classList.remove('hidden');
+            } finally {
+                toggleLoading(false);
+            }
+        }
+
+        // --- Initialization and Event Listeners ---
+
+        // Check for active key in session storage on page load
         window.addEventListener('DOMContentLoaded', () => {
-            loadChatFromLocalStorage();
-            updateButtonStates(); // Garante o estado inicial correto
+            const savedActiveKey = sessionStorage.getItem('vilorboty-active-key');
+            if (savedActiveKey) {
+                accessKeyInput.value = savedActiveKey; // Pre-fill
+                validateAccessKey(); // Try to auto-login
+            }
+            updateButtonStates(); // Ensure buttons are in correct state initially
         });
+
+        // Event listeners for login
+        accessButton.addEventListener('click', validateAccessKey);
+        accessKeyInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                validateAccessKey();
+            }
+        });
+
+        // Event listeners for chat interactions (only active after login)
         sendButton.addEventListener('click', sendMessage);
         generateImageBtn.addEventListener('click', generateImage);
+        synthesizeSpeechBtn.addEventListener('click', synthesizeSpeech);
+
         alertCloseBtn.addEventListener('click', () => {
             alertModal.style.display = 'none';
         });
 
-        // Lida com a tecla "Enter" no campo de input para enviar mensagens de texto
         chatInput.addEventListener('keydown', (event) => {
             if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault(); 
+                event.preventDefault();
                 sendMessage();
             }
         });
