@@ -427,11 +427,17 @@
             showLoading();
 
             try {
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
+                // Using gemini-2.0-flash-preview-image-generation as requested
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=${apiKey}`;
                 
+                // Payload for gemini-2.0-flash-preview-image-generation
                 const payload = {
-                    instances: { prompt: userPrompt },
-                    parameters: { "sampleCount": 1 }
+                    contents: [{
+                        parts: [{ text: userPrompt }]
+                    }],
+                    generationConfig: {
+                        responseModalities: ['TEXT', 'IMAGE'] // Requesting both text and image
+                    },
                 };
 
                 const response = await fetch(apiUrl, {
@@ -444,20 +450,21 @@
                     console.error("Erro na chamada da API de imagem:", response.status, response.statusText);
                     const errorBody = await response.text();
                     console.error("Corpo da resposta da API:", errorBody);
-                    throw new Error(`Erro na chamada da API de imagem: ${response.status} ${response.statusText || ''}`);
+                    throw new Error(`Erro na chamada da API: ${response.status} ${response.statusText || ''}`);
                 }
                 
                 const result = await response.json();
                 hideLoading();
 
-                const base64Data = result?.predictions?.[0]?.bytesBase64Encoded;
+                // Extract base64 image data
+                const base64Data = result?.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
 
                 if (base64Data) {
                     addMessage({ imageData: base64Data }, 'ai', 'image');
                     chatHistory.push({ content: { imageData: base64Data }, sender: 'ai', type: 'image' });
                     saveChatToLocalStorage();
                 } else {
-                    showAlert("Não foi possível gerar a imagem. Tente novamente com um prompt diferente.");
+                    showAlert("Não foi possível gerar a imagem. Verifique seu prompt ou tente novamente.");
                 }
             } catch (error) {
                 console.error("Erro na geração de imagem:", error);
@@ -513,7 +520,7 @@
                 if (!response.ok) {
                     console.error("Erro na chamada da API de TTS:", response.status, response.statusText);
                     const errorBody = await response.text();
-                    console.error("Corpo da resposta da API de TTS:", errorBody);
+                    console.error("Corpo da resposta da API:", errorBody);
                     throw new Error(`Erro na chamada da API de TTS: ${response.status} ${response.statusText || ''}`);
                 }
 
@@ -562,7 +569,12 @@
                 return;
             }
 
-            toggleLoading(true);
+            // Show loading overlay only for the login attempt
+            const loadingOverlay = document.createElement('div');
+            loadingOverlay.classList.add('loading-overlay', 'show');
+            loadingOverlay.innerHTML = '<div class="spinner"></div>';
+            document.body.appendChild(loadingOverlay);
+
             accessErrorMessage.classList.add('hidden');
 
             try {
@@ -576,31 +588,29 @@
 
                     if (keyData.status === 'active' && expiresAtMillis > now) {
                         // Key is valid and active
-                        // Simulate device locking (still client-side for "no backend" constraint)
                         let deviceId = localStorage.getItem('vilorboty-device-id');
                         if (!deviceId) {
-                            deviceId = crypto.randomUUID(); // Generate a unique ID for this browser
+                            deviceId = crypto.randomUUID(); 
                             localStorage.setItem('vilorboty-device-id', deviceId);
                         }
 
                         if (keyData.lockedToDeviceId === null) {
-                            // Lock the key to this device (this update requires Firestore rule to allow write)
+                            // Lock the key to this device
                             await updateDoc(keyDocRef, { lockedToDeviceId: deviceId });
                             console.log(`Chave ${enteredKey} bloqueada para o dispositivo ${deviceId}.`);
                             activeAccessKey = enteredKey;
-                            sessionStorage.setItem('vilorboty-active-key', enteredKey); // Keep logged in for session
+                            sessionStorage.setItem('vilorboty-active-key', enteredKey); 
                             loginContainer.classList.add('hidden');
                             mainChatContainer.classList.remove('hidden');
-                            loadChatFromLocalStorage(); // Load chat history after login
+                            loadChatFromLocalStorage(); 
                         } else if (keyData.lockedToDeviceId === deviceId) {
                             // Key is already locked to this device, allow access
                             activeAccessKey = enteredKey;
                             sessionStorage.setItem('vilorboty-active-key', enteredKey);
                             loginContainer.classList.add('hidden');
                             mainChatContainer.classList.remove('hidden');
-                            loadChatFromLocalStorage(); // Load chat history after login
+                            loadChatFromLocalStorage(); 
                         } else {
-                            // Key is locked to a different device
                             accessErrorMessage.textContent = "Chave já está em uso em outro dispositivo. Contate o suporte.";
                             accessErrorMessage.classList.remove('hidden');
                         }
@@ -617,17 +627,17 @@
                 accessErrorMessage.textContent = `Erro ao validar chave: ${error.message}. Tente novamente.`;
                 accessErrorMessage.classList.remove('hidden');
             } finally {
-                toggleLoading(false);
+                loadingOverlay.remove(); // Remove loading overlay
             }
         }
 
         // --- Initialization and Event Listeners ---
 
         // Check for active key in session storage on page load
-        window.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', () => {
             const savedActiveKey = sessionStorage.getItem('vilorboty-active-key');
             if (savedActiveKey) {
-                accessKeyInput.value = savedActiveKey; // Pre-fill
+                accessKeyInput.value = savedActiveKey; 
                 validateAccessKey(); // Try to auto-login
             }
             updateButtonStates(); // Ensure buttons are in correct state initially
@@ -643,6 +653,8 @@
         });
 
         // Event listeners for chat interactions (only active after login)
+        // These are attached to elements INSIDE mainChatContainer, which is initially hidden.
+        // They will work once mainChatContainer becomes visible and the elements exist.
         sendButton.addEventListener('click', sendMessage);
         generateImageBtn.addEventListener('click', generateImage);
         synthesizeSpeechBtn.addEventListener('click', synthesizeSpeech);
