@@ -112,19 +112,56 @@
             
             <input type="text" id="chat-input" placeholder="Digite sua mensagem, prompt ou texto para falar..." class="flex-1 p-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all min-w-[200px]">
             
+            <select id="model-select" class="p-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-gray-800 shadow-sm w-full sm:w-auto">
+                <!-- Modelos do OpenRouter com Puter.ai -->
+                <optgroup label="OpenAI (via OpenRouter)">
+                    <option value="openai/gpt-4o-mini" selected>GPT-4o mini</option>
+                    <option value="openai/gpt-4o">GPT-4o</option>
+                </optgroup>
+                <optgroup label="Cohere (via OpenRouter)">
+                    <option value="cohere/command-r-plus">Command R+</option>
+                    <option value="cohere/command">Command</option>
+                </optgroup>
+                <optgroup label="Deepseek (via OpenRouter)">
+                    <option value="deepseek/deepseek-chat">Deepseek Chat</option>
+                </optgroup>
+                <optgroup label="Google (via OpenRouter)">
+                    <option value="google/gemini-2.5-flash">Gemini 2.5 Flash</option>
+                    <option value="google/gemini-2.5-pro">Gemini 2.5 Pro</option>
+                    <option value="google/gemma-2-9b-it:free">Gemma 2 9B (Gratuito)</option>
+                </optgroup>
+                <optgroup label="Llama (Meta, via OpenRouter)">
+                    <option value="meta-llama/llama-3.1-8b-instruct">Llama 3.1 8B</option>
+                    <option value="meta-llama/llama-3.1-70b-instruct">Llama 3.1 70B</option>
+                </optgroup>
+                <optgroup label="Mistral (via OpenRouter)">
+                    <option value="mistralai/mistral-small">Mistral Small</option>
+                    <option value="mistralai/mixtral-8x22b-instruct">Mixtral 8x22B</option>
+                </optgroup>
+                <optgroup label="Qwen (via OpenRouter)">
+                    <option value="qwen/qwen-2.5-72b-instruct">Qwen 2.5 72B</option>
+                    <option value="qwen/qwen-max">Qwen Max</option>
+                </optgroup>
+                <optgroup label="Outros (via OpenRouter)">
+                    <option value="x-ai/grok-3-mini-beta">Grok-3 mini beta (x.ai)</option>
+                    <option value="rekaai/reka-flash-3:free">Reka Flash 3 (Gratuito)</option>
+                    <option value="microsoft/phi-3-medium-128k-instruct">Phi-3 Medium (Microsoft)</option>
+                </optgroup>
+            </select>
+
             <!-- Botão para gerar imagem -->
             <button id="generate-image-btn" class="p-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed">
-                Gerar Imagem
+                Gerar Imagem (Gemini Flash)
             </button>
 
             <!-- Botão para Texto para Fala (TTS) -->
             <button id="synthesize-speech-btn" class="p-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors text-sm w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed">
-                Falar Texto
+                Falar Texto (Gemini Flash)
             </button>
 
             <!-- Botão de enviar texto -->
             <button id="send-button" class="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed">
-                Enviar Mensagem
+                Enviar Mensagem (Puter.ai Chat)
             </button>
         </div>
     </div>
@@ -138,12 +175,13 @@
         </div>
     </div>
 
+    <script src="https://js.puter.com/v2/"></script> <!-- Puter.ai library -->
     <script type="module">
         // Firebase imports for Firestore operations
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
         import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 
-        // Firebase project configuration (SAME AS YOUR ADMIN PANEL AND FIREBASE CONSOLE)
+        // Firebase project configuration
         const firebaseConfig = {
             apiKey: "AIzaSyCov5xP4aFRo3QPFCxCRQGN7X59dR9ZLF4", 
             authDomain: "isiskd.firebaseapp.com",
@@ -158,7 +196,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // Your APP_ID for Firestore paths
+        // APP_ID for Firestore paths
         const APP_ID = "1:1055585794088:web:0c7eab96a4e696cd6f9d1d";
 
         // DOM Elements for Login and Chat
@@ -176,6 +214,7 @@
         const alertModal = document.getElementById('alert-modal');
         const alertMessage = document.getElementById('alert-message');
         const alertCloseBtn = document.getElementById('alert-close-btn');
+        const modelSelect = document.getElementById('model-select'); // Model selector
 
         // Variables for chat state and processing
         let chatHistory = [];
@@ -184,12 +223,9 @@
         let activeAccessKey = null; // Store the validated access key
 
         // ⚠️ ATENÇÃO: CHAVE DE API DIRETAMENTE NO FRONTEND! ⚠️
-        // Por uma questão de segurança, NUNCA suba este código em um servidor público com a chave visível.
-        // Qualquer pessoa pode inspecionar o código-fonte e roubar sua chave.
-        // Esta abordagem é APENAS para testes locais ou ambientes controlados.
-        // Para um ambiente de produção (como GitHub Pages acessado publicamente),
-        // a solução PROFISSIONAL e SEGURA é usar um BACKEND (ex: Firebase Cloud Functions)
-        // para fazer as chamadas à API do Gemini, protegendo sua chave.
+        // Esta chave é para as chamadas diretas aos modelos Google (Imagem, TTS).
+        // Para Puter.ai (chat de texto), a autenticação é gerenciada pelo Puter.ai,
+        // mas alguns modelos OpenRouter podem exigir sua própria chave OpenRouter configurada no Puter.ai.
         const apiKey = "AIzaSyBvfm_3o40Z26Z6_7CAz-8r6MSjPaWcR_o"; // <-- SUBSTITUA PELA SUA CHAVE DE API REAL DO GOOGLE AI STUDIO / GEMINI!
 
         // --- Utility Chat Functions ---
@@ -211,7 +247,7 @@
                 });
             } else {
                 chatHistory.push({
-                    content: 'Olá! Eu sou o VilorBoty, seu assistente de IA da All-In-One AI. Posso conversar com você, gerar imagens e até falar o texto! Como posso ajudar hoje?',
+                    content: 'Olá! Eu sou o VilorBoty, seu assistente de IA da All-In-One AI. Posso conversar com você (via Puter.ai), gerar imagens (via Gemini Flash) e até falar o texto (via Gemini Flash)! Como posso ajudar hoje?',
                     sender: 'ai',
                     type: 'text'
                 });
@@ -228,6 +264,7 @@
             sendButton.disabled = shouldDisable;
             generateImageBtn.disabled = shouldDisable;
             synthesizeSpeechBtn.disabled = shouldDisable;
+            modelSelect.disabled = shouldDisable; // Disable model select during processing
         }
 
         // Display a custom alert modal
@@ -357,53 +394,47 @@
             updateButtonStates();
             addMessage(userMessage, 'user');
             
+            // Note: chatHistory for Puter.ai should generally be simpler, just content and role.
+            // Puter.ai often expects 'user' and 'assistant' roles.
             chatHistory.push({ content: userMessage, sender: 'user', type: 'text' });
             saveChatToLocalStorage();
 
             chatInput.value = '';
             
-            const contents = chatHistory
-                .filter(msg => msg.type === 'text')
-                .map(msg => ({ role: msg.sender === 'user' ? 'user' : 'model', parts: [{ text: msg.content }] }));
-
             showLoading();
 
             try {
-                const payload = { contents: contents };
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+                const selectedModel = modelSelect.value;
+                let aiResponseText;
 
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                
-                if (!response.ok) {
-                    console.error("Erro na chamada da API de texto:", response.status, response.statusText);
-                    const errorBody = await response.text();
-                    console.error("Corpo da resposta da API:", errorBody);
-                    throw new Error(`Erro na chamada da API: ${response.status} ${response.statusText || ''}`);
+                if (typeof puter !== 'undefined' && puter.ai && typeof puter.ai.chat === 'function') {
+                    const messagesForPuter = chatHistory.filter(msg => msg.type === 'text').map(msg => ({
+                        role: msg.sender === 'user' ? 'user' : 'assistant', 
+                        content: msg.content
+                    }));
+                    
+                    const chatResult = await puter.ai.chat(messagesForPuter, { model: selectedModel });
+                    aiResponseText = chatResult.content;
+
+                } else {
+                    showAlert("Erro: Biblioteca Puter.ai não carregada. O chat de texto não funcionará.");
+                    console.error("Puter.ai library not loaded or puter.ai.chat is not a function.");
+                    return; // Exit function if Puter.ai isn't ready
                 }
 
-                const result = await response.json();
-                hideLoading();
-
-                if (result.candidates && result.candidates.length > 0 &&
-                    result.candidates[0].content && result.candidates[0].content.parts &&
-                    result.candidates[0].content.parts.length > 0) {
-                    const aiResponseText = result.candidates[0].content.parts[0].text;
+                if (aiResponseText) {
                     addMessage(aiResponseText, 'ai', 'text');
                     chatHistory.push({ content: aiResponseText, sender: 'ai', type: 'text' });
                     saveChatToLocalStorage();
                 } else {
-                    showAlert("Não foi possível obter uma resposta. Tente novamente.");
+                    showAlert("Não foi possível obter uma resposta do chat. Tente novamente.");
                 }
             } catch (error) {
-                console.error("Erro ao enviar a mensagem para a IA:", error);
-                hideLoading();
-                showAlert("Desculpe, algo deu errado. Por favor, tente novamente mais tarde.");
+                console.error("Erro ao enviar a mensagem para a IA (Puter.ai):", error);
+                showAlert("Desculpe, algo deu errado com o chat. Verifique o console para mais detalhes ou tente outro modelo.");
             } finally {
                 isProcessing = false;
+                hideLoading();
                 updateButtonStates();
             }
         }
@@ -430,13 +461,12 @@
                 // Using gemini-2.0-flash-preview-image-generation as requested
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=${apiKey}`;
                 
-                // Payload for gemini-2.0-flash-preview-image-generation
                 const payload = {
                     contents: [{
                         parts: [{ text: userPrompt }]
                     }],
                     generationConfig: {
-                        responseModalities: ['TEXT', 'IMAGE'] // Requesting both text and image
+                        responseModalities: ['TEXT', 'IMAGE']
                     },
                 };
 
@@ -450,13 +480,12 @@
                     console.error("Erro na chamada da API de imagem:", response.status, response.statusText);
                     const errorBody = await response.text();
                     console.error("Corpo da resposta da API:", errorBody);
-                    throw new Error(`Erro na chamada da API: ${response.status} ${response.statusText || ''}`);
+                    throw new Error(`Erro na chamada da API de imagem: ${response.status} ${response.statusText || ''}`);
                 }
                 
                 const result = await response.json();
                 hideLoading();
 
-                // Extract base64 image data
                 const base64Data = result?.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
 
                 if (base64Data) {
@@ -569,7 +598,6 @@
                 return;
             }
 
-            // Show loading overlay only for the login attempt
             const loadingOverlay = document.createElement('div');
             loadingOverlay.classList.add('loading-overlay', 'show');
             loadingOverlay.innerHTML = '<div class="spinner"></div>';
@@ -587,7 +615,6 @@
                     const expiresAtMillis = keyData.expiresAt;
 
                     if (keyData.status === 'active' && expiresAtMillis > now) {
-                        // Key is valid and active
                         let deviceId = localStorage.getItem('vilorboty-device-id');
                         if (!deviceId) {
                             deviceId = crypto.randomUUID(); 
@@ -595,7 +622,6 @@
                         }
 
                         if (keyData.lockedToDeviceId === null) {
-                            // Lock the key to this device
                             await updateDoc(keyDocRef, { lockedToDeviceId: deviceId });
                             console.log(`Chave ${enteredKey} bloqueada para o dispositivo ${deviceId}.`);
                             activeAccessKey = enteredKey;
@@ -604,7 +630,6 @@
                             mainChatContainer.classList.remove('hidden');
                             loadChatFromLocalStorage(); 
                         } else if (keyData.lockedToDeviceId === deviceId) {
-                            // Key is already locked to this device, allow access
                             activeAccessKey = enteredKey;
                             sessionStorage.setItem('vilorboty-active-key', enteredKey);
                             loginContainer.classList.add('hidden');
@@ -627,23 +652,20 @@
                 accessErrorMessage.textContent = `Erro ao validar chave: ${error.message}. Tente novamente.`;
                 accessErrorMessage.classList.remove('hidden');
             } finally {
-                loadingOverlay.remove(); // Remove loading overlay
+                loadingOverlay.remove();
             }
         }
 
         // --- Initialization and Event Listeners ---
-
-        // Check for active key in session storage on page load
         document.addEventListener('DOMContentLoaded', () => {
             const savedActiveKey = sessionStorage.getItem('vilorboty-active-key');
             if (savedActiveKey) {
                 accessKeyInput.value = savedActiveKey; 
-                validateAccessKey(); // Try to auto-login
+                validateAccessKey();
             }
-            updateButtonStates(); // Ensure buttons are in correct state initially
+            updateButtonStates();
         });
 
-        // Event listeners for login
         accessButton.addEventListener('click', validateAccessKey);
         accessKeyInput.addEventListener('keypress', (event) => {
             if (event.key === 'Enter') {
@@ -652,9 +674,6 @@
             }
         });
 
-        // Event listeners for chat interactions (only active after login)
-        // These are attached to elements INSIDE mainChatContainer, which is initially hidden.
-        // They will work once mainChatContainer becomes visible and the elements exist.
         sendButton.addEventListener('click', sendMessage);
         generateImageBtn.addEventListener('click', generateImage);
         synthesizeSpeechBtn.addEventListener('click', synthesizeSpeech);
