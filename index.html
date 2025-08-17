@@ -84,8 +84,7 @@
     <!-- Container de Login (inicialmente visível) -->
     <div id="login-container" class="auth-container">
         <h1 class="text-3xl font-bold text-gray-800 mb-4">Acesso ao VilorBoty</h1>
-        <p class="text-gray-600 mb-6">Insira sua chave de acesso para começar a usar.
-        Para conseguir a chave, contate: suportealloneai@gmail.com</p>
+        <p class="text-gray-600 mb-6">Insira sua chave de acesso para começar a usar.</p>
         
         <input type="text" id="access-key-input" class="p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-gray-50 text-gray-800 shadow-sm" placeholder="Sua Chave de Acesso" required>
         
@@ -114,37 +113,37 @@
             <input type="text" id="chat-input" placeholder="Digite sua mensagem, prompt ou texto para falar..." class="flex-1 p-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all min-w-[200px]">
             
             <select id="model-select" class="p-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-gray-800 shadow-sm w-full sm:w-auto">
-                <!-- Modelos do OpenRouter com Puter.ai -->
-                <optgroup label="OpenAI (via OpenRouter)">
-                    <option value="openai/gpt-5">GPT-5</option> <!-- Adicionado GPT-5 -->
+                <!-- Modelos via OpenRouter -->
+                <optgroup label="OpenAI">
+                    <option value="openai/gpt-5">GPT-5</option>
                     <option value="openai/gpt-4o">GPT-4o</option>
                     <option value="openai/gpt-4o-mini" selected>GPT-4o mini</option>
                 </optgroup>
-                <optgroup label="Cohere (via OpenRouter)">
+                <optgroup label="Cohere">
                     <option value="cohere/command-r-plus">Command R+</option>
                     <option value="cohere/command">Command</option>
                 </optgroup>
-                <optgroup label="Deepseek (via OpenRouter)">
+                <optgroup label="Deepseek">
                     <option value="deepseek/deepseek-chat">Deepseek Chat</option>
                 </optgroup>
-                <optgroup label="Google (via OpenRouter)">
+                <optgroup label="Google">
                     <option value="google/gemini-2.5-flash">Gemini 2.5 Flash</option>
                     <option value="google/gemini-2.5-pro">Gemini 2.5 Pro</option>
                     <option value="google/gemma-2-9b-it:free">Gemma 2 9B (Gratuito)</option>
                 </optgroup>
-                <optgroup label="Llama (Meta, via OpenRouter)">
+                <optgroup label="Llama">
                     <option value="meta-llama/llama-3.1-8b-instruct">Llama 3.1 8B</option>
                     <option value="meta-llama/llama-3.1-70b-instruct">Llama 3.1 70B</option>
                 </optgroup>
-                <optgroup label="Mistral (via OpenRouter)">
+                <optgroup label="Mistral">
                     <option value="mistralai/mistral-small">Mistral Small</option>
                     <option value="mistralai/mixtral-8x22b-instruct">Mixtral 8x22B</option>
                 </optgroup>
-                <optgroup label="Qwen (via OpenRouter)">
+                <optgroup label="Qwen">
                     <option value="qwen/qwen-2.5-72b-instruct">Qwen 2.5 72B</option>
                     <option value="qwen/qwen-max">Qwen Max</option>
                 </optgroup>
-                <optgroup label="Outros (via OpenRouter)">
+                <optgroup label="Outros">
                     <option value="x-ai/grok-3-mini-beta">Grok-3 mini beta (x.ai)</option>
                     <option value="rekaai/reka-flash-3:free">Reka Flash 3 (Gratuito)</option>
                     <option value="microsoft/phi-3-medium-128k-instruct">Phi-3 Medium (Microsoft)</option>
@@ -153,17 +152,17 @@
 
             <!-- Botão para gerar imagem -->
             <button id="generate-image-btn" class="p-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed">
-                Gerar Imagem (Gemini Flash)
+                Gerar Imagem
             </button>
 
             <!-- Botão para Texto para Fala (TTS) -->
             <button id="synthesize-speech-btn" class="p-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors text-sm w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed">
-                Falar Texto (Gemini Flash)
+                Falar Texto
             </button>
 
             <!-- Botão de enviar texto -->
             <button id="send-button" class="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed">
-                Enviar Mensagem (Puter.ai Chat)
+                Enviar Mensagem
             </button>
         </div>
     </div>
@@ -208,15 +207,18 @@
         const accessErrorMessage = document.getElementById('access-error-message');
         const mainChatContainer = document.getElementById('main-chat-container');
 
-        const chatContainer = mainChatContainer.querySelector('#chat-container'); 
-        const chatInput = mainChatContainer.querySelector('#chat-input');
-        const sendButton = mainChatContainer.querySelector('#send-button');
-        const generateImageBtn = mainChatContainer.querySelector('#generate-image-btn');
-        const synthesizeSpeechBtn = mainChatContainer.querySelector('#synthesize-speech-btn');
+        // These elements will be assigned AFTER mainChatContainer is made visible.
+        let chatContainer; 
+        let chatInput;
+        let sendButton;
+        let generateImageBtn;
+        let synthesizeSpeechBtn;
+        let modelSelect;
+
         const alertModal = document.getElementById('alert-modal');
         const alertMessage = document.getElementById('alert-message');
         const alertCloseBtn = document.getElementById('alert-close-btn');
-        const modelSelect = document.getElementById('model-select'); // Model selector
+        
 
         // Variables for chat state and processing
         let chatHistory = [];
@@ -226,100 +228,181 @@
 
         // ⚠️ ATENÇÃO: CHAVE DE API DIRETAMENTE NO FRONTEND! ⚠️
         // Esta chave é para as chamadas diretas aos modelos Google (Imagem, TTS).
-        // Para Puter.ai (chat de texto), a autenticação é gerenciada pelo Puter.ai,
-        // mas alguns modelos OpenRouter podem exigir sua própria chave OpenRouter configurada no Puter.ai.
-        const apiKey = "YOUR_GOOGLE_GEMINI_API_KEY_HERE"; // <-- SUBSTITUA PELA SUA CHAVE DE API REAL DO GOOGLE AI STUDIO / GEMINI!
+        // Para os modelos de chat (via Puter.ai/OpenRouter), a autenticação é gerenciada
+        // pelo Puter.ai, mas alguns modelos do OpenRouter podem exigir sua própria chave
+        // configurada na sua conta Puter.ai/OpenRouter.
+        const apiKey = "AIzaSyCtsju3AjqZWyLyjP2Vqq4IGL84y0BUaVo"; // <-- NOVA CHAVE DE API APLICADA AQUI!
 
         // --- Utility Chat Functions ---
 
+        // Function to assign DOM elements after main-chat-container is visible
+        function assignChatDomElements() {
+            try {
+                chatContainer = mainChatContainer.querySelector('#chat-container'); 
+                chatInput = mainChatContainer.querySelector('#chat-input');
+                sendButton = mainChatContainer.querySelector('#send-button');
+                generateImageBtn = mainChatContainer.querySelector('#generate-image-btn');
+                synthesizeSpeechBtn = mainChatContainer.querySelector('#synthesize-speech-btn');
+                modelSelect = mainChatContainer.querySelector('#model-select');
+                console.log("Chat DOM elements assigned:", { 
+                    chatContainer: !!chatContainer, 
+                    chatInput: !!chatInput, 
+                    sendButton: !!sendButton, 
+                    generateImageBtn: !!generateImageBtn, 
+                    synthesizeSpeechBtn: !!synthesizeSpeechBtn, 
+                    modelSelect: !!modelSelect 
+                });
+                if (!chatContainer || !chatInput || !sendButton || !generateImageBtn || !synthesizeSpeechBtn || !modelSelect) {
+                    console.error("ERRO: Um ou mais elementos do chat não foram encontrados após o login.");
+                    showAlert("Erro interno: Elementos da interface do chat não foram carregados corretamente. Tente recarregar a página.");
+                }
+            } catch (e) {
+                console.error("Erro ao atribuir elementos DOM do chat:", e);
+                showAlert("Erro interno ao carregar a interface do chat. Consulte o console para detalhes.");
+            }
+        }
+
         // Save chat history to LocalStorage
         function saveChatToLocalStorage() {
-            localStorage.setItem('vilorboty-chat-history', JSON.stringify(chatHistory));
+            try {
+                localStorage.setItem('vilorboty-chat-history', JSON.stringify(chatHistory));
+                console.log("Chat history saved to LocalStorage.");
+            } catch (e) {
+                console.error("Erro ao salvar histórico no LocalStorage:", e);
+                // No alert to user, as this is a background persistence function
+            }
         }
 
         // Load chat history from LocalStorage
         function loadChatFromLocalStorage() {
-            const savedHistory = localStorage.getItem('vilorboty-chat-history');
-            if (savedHistory) {
-                chatHistory = JSON.parse(savedHistory).map(msg => {
-                    if (msg.type === 'image' && typeof msg.content === 'object' && msg.content.imageData) {
-                        return { content: msg.content, sender: msg.sender, type: 'image' };
-                    }
-                    return { content: msg.content, sender: msg.sender, type: 'text' };
-                });
-            } else {
-                chatHistory.push({
-                    content: 'Olá! Eu sou o VilorBoty, seu assistente de IA da All-In-One AI. Posso conversar com você (via Puter.ai), gerar imagens (via Gemini Flash) e até falar o texto (via Gemini Flash)! Como posso ajudar hoje?',
-                    sender: 'ai',
-                    type: 'text'
-                });
+            console.log("loadChatFromLocalStorage called.");
+            try {
+                const savedHistory = localStorage.getItem('vilorboty-chat-history');
+                if (savedHistory) {
+                    chatHistory = JSON.parse(savedHistory).map(msg => {
+                        if (msg.type === 'image' && typeof msg.content === 'object' && msg.content.imageData) {
+                            return { content: msg.content, sender: msg.sender, type: 'image' };
+                        }
+                        return { content: msg.content, sender: msg.sender, type: 'text' };
+                    });
+                    console.log("Loaded history from LocalStorage:", chatHistory);
+                } else {
+                    chatHistory = []; 
+                    chatHistory.push({
+                        content: 'Olá! Eu sou o VilorBoty, seu assistente de IA da All-In-One AI. Posso conversar com você, gerar imagens e até falar o texto! Como posso ajudar hoje?',
+                        sender: 'ai',
+                        type: 'text'
+                    });
+                    console.log("No history found. Initial message added.");
+                }
+                
+                if (chatContainer) {
+                    chatContainer.innerHTML = ''; 
+                    chatHistory.forEach(message => {
+                        addMessage(message.content, message.sender, message.type);
+                    });
+                    console.log("Chat history loaded and messages added to DOM.");
+                } else {
+                    console.error("ERRO: chatContainer não está disponível ao carregar histórico.");
+                    showAlert("Erro interno: o container do chat não foi encontrado. As mensagens não podem ser exibidas.");
+                }
+            } catch (e) {
+                console.error("Erro ao carregar histórico do chat:", e);
+                showAlert("Erro ao carregar seu histórico de chat. Ele pode ter sido corrompido.");
             }
-            chatContainer.innerHTML = '';
-            chatHistory.forEach(message => {
-                addMessage(message.content, message.sender, message.type);
-            });
         }
 
         // Update button states (disable during processing)
         function updateButtonStates() {
             const shouldDisable = isProcessing;
-            sendButton.disabled = shouldDisable;
-            generateImageBtn.disabled = shouldDisable;
-            synthesizeSpeechBtn.disabled = shouldDisable;
-            modelSelect.disabled = shouldDisable; // Disable model select during processing
+            // Only update if elements are assigned and exist
+            if (sendButton) sendButton.disabled = shouldDisable;
+            if (generateImageBtn) generateImageBtn.disabled = shouldDisable;
+            if (synthesizeSpeechBtn) synthesizeSpeechBtn.disabled = shouldDisable;
+            if (modelSelect) modelSelect.disabled = shouldDisable;
+            console.log("Button states updated. Disabled:", shouldDisable);
         }
 
         // Display a custom alert modal
         function showAlert(message) {
             alertMessage.textContent = message;
             alertModal.style.display = 'flex';
+            console.log("Alert shown:", message);
         }
         
         // Add a message to the chat (text, image, or audio)
         function addMessage(content, sender, type = 'text') {
-            const messageElement = document.createElement('div');
-            messageElement.classList.add('flex', 'flex-col', sender === 'user' ? 'items-end' : 'items-start');
+            console.log(`addMessage: Attempting to add message type '${type}' from '${sender}'. Content:`, content);
 
-            if (type === 'text') {
-                const textElement = document.createElement('div');
-                textElement.classList.add('rounded-lg', 'p-3', 'max-w-[80%]', 'break-words', 'whitespace-pre-wrap');
-                textElement.classList.add(sender === 'user' ? 'bg-blue-600' : 'bg-blue-100');
-                textElement.classList.add(sender === 'user' ? 'text-white' : 'text-gray-800');
-                textElement.innerText = content;
-                messageElement.appendChild(textElement);
-            } else if (type === 'image' && content.imageData) {
-                const imageContainer = document.createElement('div');
-                imageContainer.classList.add('bg-blue-100', 'text-blue-800', 'rounded-lg', 'p-3', 'max-w-[80%]', 'flex', 'flex-col');
-                imageContainer.innerHTML = `<p class="text-gray-800"><strong>Imagem gerada pela IA:</strong></p>`;
-                const imageElement = document.createElement('img');
-                imageElement.src = `data:image/png;base64,${content.imageData}`;
-                imageElement.classList.add('rounded-lg', 'w-full', 'h-auto', 'mt-2');
-                imageElement.alt = "Imagem gerada pela IA"; 
-                imageContainer.appendChild(imageElement);
-                messageElement.appendChild(imageContainer);
-            } else if (type === 'audio' && content.audioUrl) {
-                const audioContainer = document.createElement('div');
-                audioContainer.classList.add('bg-blue-100', 'text-gray-800', 'rounded-lg', 'p-3', 'max-w-[80%]', 'flex', 'flex-col');
-                audioContainer.innerHTML = `<p class="text-gray-800"><strong>Áudio gerado:</strong></p>`;
-                const audioElement = document.createElement('audio');
-                audioElement.controls = true;
-                audioElement.src = content.audioUrl;
-                audioElement.classList.add('mt-2');
-                audioContainer.appendChild(audioElement);
-                messageElement.appendChild(audioContainer);
+            if (!chatContainer || mainChatContainer.classList.contains('hidden')) {
+                console.error("ERRO CRÍTICO: chatContainer não está disponível ou visível. Não foi possível adicionar a mensagem.");
+                return; 
             }
 
-            chatContainer.appendChild(messageElement);
-            chatContainer.scrollTop = chatContainer.scrollHeight; 
+            try {
+                const messageElement = document.createElement('div');
+                messageElement.classList.add('flex', 'flex-col', sender === 'user' ? 'items-end' : 'items-start');
+
+                if (type === 'text') {
+                    const textElement = document.createElement('div');
+                    textElement.classList.add(
+                        'rounded-lg', 'p-3', 'max-w-[80%]', 'break-words', 'whitespace-pre-wrap',
+                        sender === 'user' ? 'bg-blue-600' : 'bg-blue-100',
+                        sender === 'user' ? 'text-white' : 'text-gray-800'
+                    );
+                    textElement.innerText = content; 
+                    messageElement.appendChild(textElement);
+                    console.log("Text message element created and appended.");
+                } else if (type === 'image' && typeof content === 'object' && content.imageData) {
+                    const imageContainer = document.createElement('div');
+                    imageContainer.classList.add('bg-blue-100', 'text-blue-800', 'rounded-lg', 'p-3', 'max-w-[80%]', 'flex', 'flex-col');
+                    imageContainer.innerHTML = `<p class="text-gray-800"><strong>Imagem gerada pela IA:</strong></p>`;
+                    const imageElement = document.createElement('img');
+                    imageElement.src = `data:image/png;base64,${content.imageData}`;
+                    imageElement.classList.add('rounded-lg', 'w-full', 'h-auto', 'mt-2');
+                    imageElement.alt = "Imagem gerada pela IA"; 
+                    imageContainer.appendChild(imageElement);
+                    messageElement.appendChild(imageContainer);
+                    console.log("Image message element created and appended.");
+                } else if (type === 'audio' && typeof content === 'object' && content.audioUrl) {
+                    const audioContainer = document.createElement('div');
+                    audioContainer.classList.add('bg-blue-100', 'text-gray-800', 'rounded-lg', 'p-3', 'max-w-[80%]', 'flex', 'flex-col');
+                    audioContainer.innerHTML = `<p class="text-gray-800"><strong>Áudio gerado:</strong></p>`;
+                    const audioElement = document.createElement('audio');
+                    audioElement.controls = true;
+                    audioElement.src = content.audioUrl;
+                    audioElement.classList.add('mt-2');
+                    audioContainer.appendChild(audioElement);
+                    messageElement.appendChild(audioContainer);
+                    console.log("Audio message element created and appended.");
+                } else {
+                    console.warn(`addMessage: Tipo de mensagem desconhecido ou conteúdo inválido para o tipo '${type}'. Conteúdo:`, content);
+                    return; 
+                }
+
+                chatContainer.appendChild(messageElement);
+                chatContainer.scrollTop = chatContainer.scrollHeight; 
+                console.log("Message successfully appended to chatContainer. Scrolled to bottom.");
+            } catch (e) {
+                console.error("Erro ao adicionar mensagem ao DOM:", e);
+                showAlert("Erro interno ao exibir a mensagem. Consulte o console.");
+            }
         }
 
         // Show loading indicator
         function showLoading() {
+            hideLoading(); 
             loadingIndicator = document.createElement('div');
-            loadingIndicator.classList.add('flex', 'justify-start');
+            loadingIndicator.classList.add('flex', 'justify-start'); 
             loadingIndicator.innerHTML = '<div class="bg-gray-200 text-gray-700 rounded-lg p-3 max-w-[80%]">Digitando...</div>';
-            chatContainer.appendChild(loadingIndicator);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+            
+            if (chatContainer) {
+                chatContainer.appendChild(loadingIndicator);
+                chatContainer.scrollTop = chatContainer.scrollHeight; 
+                console.log("Loading indicator shown.");
+            } else {
+                console.error("ERRO: chatContainer elemento não encontrado para exibir o indicador de carregamento.");
+            }
         }
 
         // Hide loading indicator
@@ -327,6 +410,7 @@
             if (loadingIndicator) {
                 loadingIndicator.remove();
                 loadingIndicator = null;
+                console.log("Loading indicator hidden.");
             }
         }
 
@@ -388,22 +472,20 @@
         // --- Core AI Interaction Functions ---
 
         async function sendMessage() {
-            if (isProcessing) return;
+            if (isProcessing) return; 
             const userMessage = chatInput.value.trim();
             if (userMessage === '') return;
             
-            isProcessing = true;
-            updateButtonStates();
-            addMessage(userMessage, 'user');
+            isProcessing = true; 
+            updateButtonStates(); 
+            addMessage(userMessage, 'user'); 
             
-            // Note: chatHistory for Puter.ai should generally be simpler, just content and role.
-            // Puter.ai often expects 'user' and 'assistant' roles.
             chatHistory.push({ content: userMessage, sender: 'user', type: 'text' });
             saveChatToLocalStorage();
 
-            chatInput.value = '';
+            chatInput.value = ''; 
             
-            showLoading();
+            showLoading(); 
 
             try {
                 const selectedModel = modelSelect.value;
@@ -415,29 +497,34 @@
                         content: msg.content
                     }));
                     
+                    console.log("Chamando puter.ai.chat com modelo:", selectedModel, "e mensagens:", messagesForPuter);
                     const chatResult = await puter.ai.chat(messagesForPuter, { model: selectedModel });
-                    aiResponseText = chatResult.content;
+                    console.log("Resultado bruto de puter.ai.chat:", chatResult); 
+                    // *** AQUI ESTÁ A MUDANÇA CRÍTICA: ACESSANDO message.content ***
+                    aiResponseText = chatResult?.message?.content; 
+                    console.log("aiResponseText após Puter.ai (CORRIGIDO):", aiResponseText); 
 
                 } else {
-                    showAlert("Erro: Biblioteca Puter.ai não carregada. O chat de texto não funcionará.");
+                    showAlert("Erro: A funcionalidade de chat está indisponível.");
                     console.error("Puter.ai library not loaded or puter.ai.chat is not a function.");
-                    return; // Exit function if Puter.ai isn't ready
+                    return; 
                 }
 
                 if (aiResponseText) {
-                    addMessage(aiResponseText, 'ai', 'text');
+                    addMessage(aiResponseText, 'ai', 'text'); 
                     chatHistory.push({ content: aiResponseText, sender: 'ai', type: 'text' });
                     saveChatToLocalStorage();
                 } else {
                     showAlert("Não foi possível obter uma resposta do chat. Tente novamente.");
+                    console.warn("Resposta de texto vazia ou indefinida do Puter.ai.");
                 }
             } catch (error) {
-                console.error("Erro ao enviar a mensagem para a IA (Puter.ai):", error);
+                console.error("Erro ao enviar a mensagem para a IA (Chat):", error);
                 showAlert("Desculpe, algo deu errado com o chat. Verifique o console para mais detalhes ou tente outro modelo.");
             } finally {
-                isProcessing = false;
-                hideLoading();
-                updateButtonStates();
+                isProcessing = false; 
+                hideLoading(); 
+                updateButtonStates(); 
             }
         }
         
@@ -460,7 +547,6 @@
             showLoading();
 
             try {
-                // Using gemini-2.0-flash-preview-image-generation as requested
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=${apiKey}`;
                 
                 const payload = {
@@ -630,13 +716,25 @@
                             sessionStorage.setItem('vilorboty-active-key', enteredKey); 
                             loginContainer.classList.add('hidden');
                             mainChatContainer.classList.remove('hidden');
-                            loadChatFromLocalStorage(); 
+                            
+                            // *** CRÍTICO: CHAME assignChatDomElements E attachChatEventListeners AQUI ***
+                            assignChatDomElements(); // Garante que os elementos DOM do chat são encontrados
+                            attachChatEventListeners(); // Garante que os listeners são anexados
+                            loadChatFromLocalStorage(); // Agora o chatContainer deve estar disponível
+                            updateButtonStates(); // Atualiza o estado dos botões após o login
+
                         } else if (keyData.lockedToDeviceId === deviceId) {
                             activeAccessKey = enteredKey;
                             sessionStorage.setItem('vilorboty-active-key', enteredKey);
                             loginContainer.classList.add('hidden');
                             mainChatContainer.classList.remove('hidden');
-                            loadChatFromLocalStorage(); 
+
+                            // *** CRÍTICO: CHAME assignChatDomElements E attachChatEventListeners AQUI ***
+                            assignChatDomElements(); // Garante que os elementos DOM do chat são encontrados
+                            attachChatEventListeners(); // Garante que os listeners são anexados
+                            loadChatFromLocalStorage(); // Agora o chatContainer deve estar disponível
+                            updateButtonStates(); // Atualiza o estado dos botões após o login
+
                         } else {
                             accessErrorMessage.textContent = "Chave já está em uso em outro dispositivo. Contate o suporte.";
                             accessErrorMessage.classList.remove('hidden');
@@ -660,12 +758,14 @@
 
         // --- Initialization and Event Listeners ---
         document.addEventListener('DOMContentLoaded', () => {
+            console.log("DOM Content Loaded. Initializing VilorBoty...");
             const savedActiveKey = sessionStorage.getItem('vilorboty-active-key');
             if (savedActiveKey) {
                 accessKeyInput.value = savedActiveKey; 
-                validateAccessKey();
+                validateAccessKey(); 
             }
-            updateButtonStates();
+            updateButtonStates(); 
+            console.log("Initial setup complete. Waiting for login.");
         });
 
         accessButton.addEventListener('click', validateAccessKey);
@@ -676,20 +776,53 @@
             }
         });
 
-        sendButton.addEventListener('click', sendMessage);
-        generateImageBtn.addEventListener('click', generateImage);
-        synthesizeSpeechBtn.addEventListener('click', synthesizeSpeech);
+        // Function to attach event listeners to chat elements
+        function attachChatEventListeners() {
+            console.log("Attempting to attach chat event listeners.");
+            try {
+                if (sendButton) {
+                    sendButton.removeEventListener('click', sendMessage); 
+                    sendButton.addEventListener('click', sendMessage);
+                    console.log("sendButton listener attached.");
+                } else { console.warn("sendButton não encontrado para anexar listener."); }
+
+                if (generateImageBtn) {
+                    generateImageBtn.removeEventListener('click', generateImage);
+                    generateImageBtn.addEventListener('click', generateImage);
+                    console.log("generateImageBtn listener attached.");
+                } else { console.warn("generateImageBtn não encontrado para anexar listener."); }
+
+                if (synthesizeSpeechBtn) {
+                    synthesizeSpeechBtn.removeEventListener('click', synthesizeSpeech);
+                    synthesizeSpeechBtn.addEventListener('click', synthesizeSpeech);
+                    console.log("synthesizeSpeechBtn listener attached.");
+                } else { console.warn("synthesizeSpeechBtn não encontrado para anexar listener."); }
+                
+                if (chatInput) {
+                    chatInput.removeEventListener('keydown', handleChatInputKeydown); 
+                    chatInput.addEventListener('keydown', handleChatInputKeydown);
+                    console.log("chatInput keydown listener attached.");
+                } else { console.warn("chatInput não encontrado para anexar listener."); }
+
+                console.log("Chat event listeners attachment complete.");
+            } catch (e) {
+                console.error("Erro ao anexar event listeners do chat:", e);
+                showAlert("Erro interno ao configurar os controles do chat.");
+            }
+        }
+
+        // Handler for chat input keydown to allow Enter to send message
+        function handleChatInputKeydown(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault(); 
+                sendMessage();
+            }
+        }
 
         alertCloseBtn.addEventListener('click', () => {
             alertModal.style.display = 'none';
         });
 
-        chatInput.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault();
-                sendMessage();
-            }
-        });
     </script>
 </body>
 </html>
